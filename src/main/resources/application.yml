@@ -5,7 +5,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/phoenixkey
     username: ${DB_USERNAME:phoenixkey}
-    password: ${DB_PASSWORD:changeme}
+    password: ${DB_PASSWORD:phoenixkey_dev_password}
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5
@@ -40,31 +40,37 @@ spring:
           max-idle: 8
           min-idle: 2
 
-# HashiCorp Vault config
-# SERVER_PEPPER sẽ được inject vào spring.config.import từ Vault
-# KHÔNG bao giờ hardcode pepper ở đây
-spring.config.import: "optional:vault://"
+  cloud:
+    vault:
+      enabled: ${VAULT_ENABLED:false}
+      uri: ${VAULT_ADDR:http://localhost:8200}
+      authentication: TOKEN
+      token: ${VAULT_TOKEN:phoenixkey-dev-token}
+      kv:
+        enabled: true
+        backend: secret
+        default-context: phoenixkey
 
-vault:
-  uri: ${VAULT_ADDR:http://localhost:8200}
-  authentication: TOKEN
-  token: ${VAULT_TOKEN:}
-  kv:
-    enabled: true
-    backend: secret
-    default-context: phoenixkey
-
-# App-specific config
+# ──────────────────────────────────────────────────────────
+# PhoenixKey Config
+#
+# PEPPER:
+#   Dev: Giá trị mặc định trong file này (chỉ dùng local)
+#   Prod: Đọc từ HashiCorp Vault tại secret/phoenixkey/server_pepper
+#         Set VAULT_ENABLED=true và VAULT_TOKEN khi deploy lên server
+# ──────────────────────────────────────────────────────────
 phoenixkey:
-  # Pepper được đọc từ Vault tại runtime, inject qua VaultConfig
-  # pepper: (không được khai báo ở đây)
+  # Pepper cho Blind Index — DEV ONLY
+  # Prod: Vault tự inject qua spring.cloud.vault
+  pepper: ${SERVER_PEPPER:dev-pepper-for-local-testing-only-32bytes}
+  pepper-version: ${PEPPER_VERSION:1}
   otp:
-    ttl-seconds: 300 # OTP hết hạn sau 5 phút
+    ttl-seconds: 300
     max-attempts: 5
   session:
-    ttl-seconds: 86400 # Session 24 giờ
+    ttl-seconds: 86400
   rate-limit:
-    otp-per-hour: 5 # Tối đa 5 lần gửi OTP / IP / giờ
+    otp-per-hour: 5
     ttl-seconds: 3600
 
 server:
@@ -72,7 +78,16 @@ server:
   servlet:
     context-path: /api/v1
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
 logging:
   level:
-    com.magiclamp.phoenixkey: INFO
+    com.magiclamp.phoenixkey: ${LOG_LEVEL:INFO}
     org.springframework.security: WARN
