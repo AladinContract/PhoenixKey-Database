@@ -1,0 +1,101 @@
+version: "3.9"
+
+# ============================================================
+# PhoenixKey Database — Local Development Stack
+#
+# Chạy: docker compose up -d
+# Dừng: docker compose down
+# Reset data: docker compose down -v
+# ============================================================
+
+services:
+  # ──────────────────────────────────────────────────────────
+  # PostgreSQL 16 — ACID Database cho PhoenixKey
+  # ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: phoenixkey-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: phoenixkey
+      POSTGRES_USER: phoenixkey
+      POSTGRES_PASSWORD: phoenixkey_dev_password
+    ports:
+      # Host port để connect từ IDE/DBeaver
+      - "5432:5432"
+    volumes:
+      # Persistent data volume
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U phoenixkey -d phoenixkey" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      postgres -c max_connections=100 -c shared_buffers=256MB -c effective_cache_size=512MB -c maintenance_work_mem=64MB -c work_mem=16MB -c log_min_duration_statement=200ms -c log_connections=on -c log_disconnections=on
+
+  # ──────────────────────────────────────────────────────────
+  # Redis 7 — Cache cho OTP, Session, Rate Limit
+  # ──────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: phoenixkey-redis
+    restart: unless-stopped
+    ports:
+      # Host port để connect từ RedisInsight/redis-cli
+      - "6379:6379"
+    volumes:
+      # Persistent data volume (Redis không bắt buộc persistent —
+      # vì dữ liệu đều có TTL, nhưng giữ lại cho dev thuận tiện)
+      - redis_data:/data
+    command: >
+      redis-server --save 900 1 --save 300 10 --save 60 10000 --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly no
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ──────────────────────────────────────────────────────────
+  # HashiCorp Vault — Local dev (dev mode, insecure)
+  # Chỉ dùng cho dev — production phải dùng HCP Vault / Vault Enterprise
+  # ──────────────────────────────────────────────────────────
+  vault:
+    image: hashicorp/vault:1.17
+    container_name: phoenixkey-vault
+    restart: unless-stopped
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: phoenixkey-dev-token
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    ports:
+      - "8200:8200"
+    volumes:
+      - vault_data:/vault/file
+    cap_add:
+      - IPC_LOCK
+    healthcheck:
+      test: [ "CMD", "vault", "status" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    # Vault dev mode tự unseal — không cần init
+    command: server -dev
+
+# ──────────────────────────────────────────────────────────
+# Persistent Volumes
+# ──────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  vault_data:
+    driver: local
+
+# ──────────────────────────────────────────────────────────
+# Networks
+# ──────────────────────────────────────────────────────────
+networks:
+  default:
+    name: phoenixkey-network
+    driver: bridge
