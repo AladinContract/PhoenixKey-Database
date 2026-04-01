@@ -35,30 +35,30 @@ Mọi dữ liệu nghiệp vụ thuộc về các App khác (OriLife, Aladin Wor
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Người dùng (App Mobile)               │
+│                    Người dùng (App Mobile)              │
 │           OriLife  │  Aladin Work  │  ProofChat         │
 └──────────┬───────────────────────────────────┬──────────┘
            │                                   │
-           │  PhoenixKey SDK                    │
+           │  PhoenixKey SDK                   │
            ▼                                   ▼
 ┌─────────────────────────────────────────────────────────┐
-│              PhoenixKey Backend (NestJS)                 │
+│              PhoenixKey Backend (NestJS)                │
 │         /auth  │  /identity  │  /key/rotate             │
-└──────────┬────────────────────────────┬────────────────┘
+└──────────┬────────────────────────────┬─────────────────┘
            │                            │
            ▼                            ▼
 ┌──────────────────────┐   ┌──────────────────────────────┐
 │   Redis              │   │   PostgreSQL                 │
-│  (OTP, Session,      │   │   PhoenixKey Database       │  ← ĐÂY
+│  (OTP, Session,      │   │   PhoenixKey Database        │  ← ĐÂY
 │   Rate Limit)        │   │                              │
 └──────────────────────┘   └──────────────────────────────┘
                                          │
                                          ▼
-                             ┌──────────────────────────┐
+                             ┌───────────────────────────┐
                              │   Blockchain Cardano      │
                              │   (DID, TAAD, Smart       │
                              │    Contracts)             │  ← SSoT
-                             └──────────────────────────┘
+                             └───────────────────────────┘
 ```
 
 **Quan hệ:**
