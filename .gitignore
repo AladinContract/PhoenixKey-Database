@@ -58,3 +58,6 @@ yarn-error.log*
 
 ### 🚫 Documents
 *.docx
+PhoenixKey-DB-API.md
+PhoenixKey-Development.md
+API.md
