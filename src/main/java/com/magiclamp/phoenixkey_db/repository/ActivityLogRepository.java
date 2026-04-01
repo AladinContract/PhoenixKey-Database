@@ -132,14 +132,20 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, UUID> 
      * Đếm số failed login gần đây của một IP hash.
      * Dùng cho rate limiting (block IP nếu vượt ngưỡng).
      *
+     * <p>
+     * Dùng native query vì Hibernate 6 không hỗ trợ JSONB bracket
+     * notation {@code a.metadata['key']} trong JPQL.
+     *
      * @param ipHash SHA-256 hash của IP (không lưu IP thật)
      * @param since  thời điểm bắt đầu
      * @return số failed login
      */
-    @Query("SELECT COUNT(a) FROM ActivityLog a " +
-            "WHERE a.action = 'login_failed' " +
-            "AND a.metadata['ip_hash'] = :ipHash " +
-            "AND a.createdAt >= :since")
+    @Query(value = """
+            SELECT COUNT(*) FROM activity_logs
+            WHERE action = 'login_failed'
+              AND metadata->>'ip_hash' = :ipHash
+              AND created_at >= :since
+            """, nativeQuery = true)
     long countRecentFailedLogins(
             @Param("ipHash") String ipHash,
             @Param("since") OffsetDateTime since);
