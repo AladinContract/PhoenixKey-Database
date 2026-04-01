@@ -51,7 +51,7 @@ public class BlindIndexService {
 
     public BlindIndexService(
             @Value("${phoenixkey.pepper}") String pepper,
-            @Value("${phoenixkey.pepper.version:1}") int pepperVersion) {
+            @Value("${phoenixkey.pepper-version:1}") int pepperVersion) {
         this.currentPepper = pepper;
         this.currentPepperVersion = pepperVersion;
     }

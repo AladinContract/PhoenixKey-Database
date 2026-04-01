@@ -66,6 +66,7 @@ public interface OnchainTaadStateCacheRepository extends JpaRepository<OnchainTa
      *
      * @return danh sách cache active
      */
+    @Query("SELECT c FROM OnchainTaadStateCache c WHERE c.status = com.magiclamp.phoenixkey_db.domain.TaadStatus.ACTIVE")
     List<OnchainTaadStateCache> findByStatusActive();
 
     // ──────────────────────────────────────────────────────────────

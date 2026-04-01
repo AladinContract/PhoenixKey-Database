@@ -21,7 +21,7 @@ CREATE INDEX idx_users_did ON users (user_did);
 -- Bảng ánh xạ Web2 → DID
 -- Blind Index: không lưu phone/email plaintext
 -- -----------------------------------------------
-CREATE TYPE auth_provider AS ENUM ('google', 'apple', 'phone');
+CREATE TYPE auth_provider AS ENUM ('GOOGLE', 'APPLE', 'PHONE');
 
 CREATE TABLE
     auth_methods (
@@ -33,7 +33,7 @@ CREATE TABLE
         blind_index_hash VARCHAR(64) UNIQUE NOT NULL,
         -- Phục vụ xoay vòng khóa (Pepper Rotation) trên Vault
         -- Khi rotate pepper: tăng version này lên 2, 3...
-        pepper_version SMALLINT NOT NULL DEFAULT 1,
+        pepper_version INTEGER NOT NULL DEFAULT 1,
         is_verified BOOLEAN NOT NULL DEFAULT FALSE,
         added_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     );
