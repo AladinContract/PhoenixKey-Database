@@ -1,0 +1,60 @@
+### 🚫 Build files
+/target/
+/build/
+/out/
+
+### 🚫 Logs
+*.log
+logs/
+*.out
+
+### 🚫 Spring Boot
+*.jar
+*.war
+*.ear
+*.class
+
+### 🚫 Application properties (local override)
+application-local.yml
+application-local.properties
+application-dev.yml
+application-dev.properties
+
+### 🚫 OS files
+.DS_Store
+Thumbs.db
+
+### 🚫 IDE - IntelliJ IDEA
+.idea/
+*.iml
+
+### 🚫 IDE - Eclipse
+.project
+.classpath
+.settings/
+
+### 🚫 IDE - VS Code
+.vscode/
+
+### 🚫 Node (nếu có frontend)
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+### 🚫 Test reports
+/test-output/
+/surefire-reports/
+
+### 🚫 Docker
+*.env
+.env
+
+### 🚫 Misc
+*.tmp
+*.swp
+*.bak
+
+### 🚫 Documents
+*.docx
