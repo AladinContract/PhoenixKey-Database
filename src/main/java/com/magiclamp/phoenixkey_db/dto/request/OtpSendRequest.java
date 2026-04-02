@@ -15,25 +15,30 @@ import jakarta.validation.constraints.Size;
  * - Gửi OTP qua SMS/Email
  * - Gọi PK_DB để lưu OTP vào Redis
  *
- * PK_DB nhận blind_hash + otp + credential.
- * `credential` (email/phone thuần) được dùng để re-hash blind_index_hash
- * khi pepper được rotate — không lưu vào DB (Zero-PII).
+ * PK_DB nhận blind_hash + otp + credential + ipHash.
+ * - `credential` dùng để re-hash khi pepper rotate.
+ * - `ipHash` dùng để log và rate limit theo IP.
+ *
+ * Zero-PII: Credential không lưu vào DB. IP thật không lưu — chỉ hash.
  *
  * @see com.magiclamp.phoenixkey_db.dto.response.OtpSendResponse
  */
 public record OtpSendRequest(
-        @NotBlank(message = "Blind hash is required") String blindHash,
+        @NotBlank(message = "Blind hash is required")
+        String blindHash,
 
-        @NotBlank(message = "OTP is required") @Size(min = 6, max = 6, message = "OTP must be 6 digits") String otp,
+        @NotBlank(message = "OTP is required")
+        @Size(min = 6, max = 6, message = "OTP must be 6 digits")
+        String otp,
 
-        @NotNull(message = "Provider is required") AuthProvider provider,
+        @NotNull(message = "Provider is required")
+        AuthProvider provider,
 
-        /**
-         * Credential gốc (email/phone) dùng để re-hash blind_index_hash
-         * khi pepper được rotate.
-         *
-         * Zero-PII: PK_DB dùng credential này in-memory rồi DISCARD,
-         * không lưu vào DB.
-         */
-        @NotBlank(message = "Credential is required for re-hash") String credential) {
+        /** Credential gốc (email/phone) — dùng re-hash khi pepper rotate. Không lưu vào DB. */
+        @NotBlank(message = "Credential is required for re-hash")
+        String credential,
+
+        /** SHA-256 hash của IP nguồn — dùng log và rate limit. Không nhận IP thật. */
+        @NotBlank(message = "IP hash is required for rate limiting")
+        String ipHash) {
 }
