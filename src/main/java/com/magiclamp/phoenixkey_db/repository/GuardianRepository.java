@@ -64,8 +64,8 @@ public interface GuardianRepository extends JpaRepository<Guardian, UUID> {
      */
     @Modifying
     @Query("UPDATE Guardian g SET g.status = 'revoked' " +
-            "WHERE g.user.id = :userId AND g.guardianDid = :guardianDid")
-    void revokeByUserIdAndGuardianDid(
+            "WHERE g.user.id = :userId AND g.guardianDid = :guardianDid AND g.status = 'active'")
+    int revokeByUserIdAndGuardianDid(
             @Param("userId") UUID userId,
             @Param("guardianDid") String guardianDid);
 
