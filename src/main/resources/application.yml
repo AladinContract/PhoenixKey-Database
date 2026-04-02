@@ -42,7 +42,7 @@ spring:
 
   cloud:
     vault:
-      enabled: ${VAULT_ENABLED:false}
+      enabled: ${VAULT_ENABLED:true}
       uri: ${VAULT_ADDR:http://localhost:8200}
       authentication: TOKEN
       token: ${VAULT_TOKEN:phoenixkey-dev-token}
@@ -60,10 +60,9 @@ spring:
 #         Set VAULT_ENABLED=true và VAULT_TOKEN khi deploy lên server
 # ──────────────────────────────────────────────────────────
 phoenixkey:
-  # Pepper cho Blind Index — DEV ONLY
-  # Prod: Vault tự inject qua spring.cloud.vault
-  pepper: ${SERVER_PEPPER:dev-pepper-for-local-testing-only-32bytes}
-  pepper-version: ${PEPPER_VERSION:1}
+  # Pepper được đọc từ HashiCorp Vault tại secret/phoenixkey/pepper
+  # Bao gồm current_version + tất cả pepper cũ (multi-version)
+  # Không còn fallback config ở đây
   otp:
     ttl-seconds: 300
     max-attempts: 5
