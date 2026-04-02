@@ -15,8 +15,9 @@ import java.util.UUID;
  *   - read_only: chỉ đọc, không ký
  *
  * ZERO-TRUST: {@code added_by_signature} là chữ ký từ Root Key.
- * Backend phải verify chữ ký này trước khi INSERT.
+ * NestJS (Backend) verify chữ ký này trước khi gọi PK_DB INSERT.
  * Nếu Backend bị hack, hacker không thể tự ý thêm khóa vì không có Root Key.
+ * PK_DB chỉ nhận và lưu — không verify được vì không có root public key.
  *
  * Lưu ý: Bảng này dùng user_did (VARCHAR) làm FK thay vì user_id (UUID),
  * vì authorized_keys được truy vấn chủ yếu qua user_did
@@ -75,8 +76,8 @@ public class AuthorizedKey {
     /**
      * ZERO-TRUST: Chữ ký từ Root Key chứng minh việc cấp quyền này hợp lệ.
      *
-     * Backend PHẢI verify chữ ký này trước khi INSERT.
-     * Nếu Backend bị hack, hacker không thể tự thêm khóa vì không có Root Key.
+     * NestJS (Backend) đã verify chữ ký trước khi gọi PK_DB.
+     * PK_DB chỉ nhận và lưu — không verify được vì không có root public key.
      */
     @Column(name = "added_by_signature", length = 256, nullable = false)
     private String addedBySignature;

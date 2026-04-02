@@ -32,6 +32,7 @@ public class AuthServiceImpl implements AuthService {
     private final BlindIndexService blindIndexService;
 
     private static final String REASON = "reason";
+    private static final String IP_HASH = "ip_hash";
 
     // ──────────────────────────────────────────────────────────────
     // Save OTP — NestJS gọi sau khi generate OTP
@@ -62,7 +63,8 @@ public class AuthServiceImpl implements AuthService {
 
         activityLogService.log(
                 ActivityLogService.ACTION_OTP_SENT,
-                Map.of("provider", request.provider().name()));
+                Map.of("provider", request.provider().name(),
+                        IP_HASH, request.ipHash()));
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -93,7 +95,8 @@ public class AuthServiceImpl implements AuthService {
         if (storedOtp.isEmpty()) {
             activityLogService.log(
                     ActivityLogService.ACTION_LOGIN_FAILED,
-                    Map.of(REASON, "otp_not_found"));
+                    Map.of(REASON, "otp_not_found",
+                            IP_HASH, request.ipHash()));
             throw new AppException(ErrorCode.OTP_INVALID);
         }
 
@@ -103,7 +106,8 @@ public class AuthServiceImpl implements AuthService {
             redisService.deleteOtp(blindHash);
             activityLogService.log(
                     ActivityLogService.ACTION_OTP_FAILED,
-                    Map.of(REASON, "max_attempts_exceeded"));
+                    Map.of(REASON, "max_attempts_exceeded",
+                            IP_HASH, request.ipHash()));
             throw new AppException(ErrorCode.OTP_EXCEEDED_ATTEMPTS);
         }
 
@@ -113,7 +117,8 @@ public class AuthServiceImpl implements AuthService {
             log.warn("OTP mismatch: blind_hash={}, attempt={}", blindHash, newAttempts);
             activityLogService.log(
                     ActivityLogService.ACTION_LOGIN_FAILED,
-                    Map.of(REASON, "invalid_otp"));
+                    Map.of(REASON, "invalid_otp",
+                            IP_HASH, request.ipHash()));
             throw new AppException(ErrorCode.OTP_INVALID);
         }
 
@@ -152,12 +157,14 @@ public class AuthServiceImpl implements AuthService {
                     authMethod.getUser().getId(),
                     ActivityLogService.ACTION_LOGIN_SUCCESS,
                     Map.of("provider", authMethod.getProvider().name(),
-                            "pepper_rehashed", String.valueOf(needsRehash)));
+                            "pepper_rehashed", String.valueOf(needsRehash),
+                            IP_HASH, request.ipHash()));
         } else {
             // User mới → OTP đúng nhưng chưa đăng ký
             activityLogService.log(
                     ActivityLogService.ACTION_LOGIN_SUCCESS,
-                    Map.of("new_user", "true"));
+                    Map.of("new_user", "true",
+                            IP_HASH, request.ipHash()));
         }
 
         return new OtpVerifyResponse(userDid, blindHash);
