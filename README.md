@@ -356,7 +356,9 @@ CREATE TABLE activity_logs (
 | `ratelimit:ip:{ip_hash}`         | PK_DB                 | Số request/IP              | 3600s (1 giờ) | Chống spam: khóa 1h nếu vượt ngưỡng |
 | `session:token:{jwt_hash}`       | PK_DB                 | `{user_did\|pubkey}`       | 86400s (24h)  | Phiên đăng nhập Web2                |
 
-**Lưu ý:** OTP được **NestJS generate** và gửi qua SMS/Email. PK_DB chỉ nhận `blind_hash + otp` từ NestJS rồi lưu vào Redis. PK_DB không biết email/phone thật.
+**Lưu ý:** OTP được **NestJS generate** và gửi qua SMS/Email. PK_DB nhận `blind_hash + otp + credential` từ NestJS rồi lưu vào Redis. `credential` (email/phone thuần) được dùng để re-hash blind_index_hash khi pepper được rotate — không lưu vào DB.
+
+> **Zero-PII:** PK_DB chỉ lưu `blind_hash`, không lưu credential thật. Re-hash xảy ra in-memory trong quá trình verify OTP.
 
 ---
 
@@ -368,11 +370,40 @@ CREATE TABLE activity_logs (
 - Nếu `$new_block` nhỏ hơn giá trị đang có → **từ chối ghi đè**
 - Nếu `block_hash` lệch (Reorg/Rollback) → **xóa cache** của user đó và sync lại từ đầu
 
-### Quy tắc 2: Vault Operations (Pepper)
+### Quy tắc 2: Vault Operations (Pepper — Multi-Version)
 
-- `SERVER_PEPPER` **tuyệt đối không được** lưu trong `.env` thô trên máy chủ
-- Phải gọi API từ HashiCorp Vault (hoặc AWS KMS) khi khởi động App
-- Định kỳ **6 tháng xoay vòng** Pepper: tăng `pepper_version`, hash cũ vẫn verify được qua logic multi-version
+Vault là **Single Source of Truth** cho tất cả pepper (hiện tại và lịch sử).
+
+**Vault path:** `secret/phoenixkey/pepper`
+
+```json
+{
+  "current_version": 2,
+  "pepper_1": "pepper_v1_6tháng_cũ",
+  "pepper_2": "pepper_v2_hiện_tại"
+}
+```
+
+**Pepper Rotation Flow (6 tháng/lần):**
+
+1. Tạo `pepper_v{N+1}` mới trên Vault (giữ nguyên `pepper_N` cũ)
+2. Update `current_version = N+1` trong Vault
+3. Restart PK_DB → đọc `current_version` và tất cả `pepper_N` từ Vault
+
+**Multi-Version Lookup (credential migration on login):**
+
+```
+User login (credential + blind_hash)
+  │
+  ├─ lookup auth_method → pepper_version = 1 (cũ)
+  ├─ verify: hash(credential, pepper_1) == stored_hash  ✓
+  ├─ re-hash: blind_hash_v2 = hash(credential, pepper_2)
+  └─ UPDATE: auth_method
+      blind_index_hash = blind_hash_v2
+      pepper_version = 2
+```
+
+**Lưu ý:** `credential` (email/phone thuần) được NestJS gửi kèm trong OTP verify request. PK_DB không lưu credential — chỉ dùng in-memory để re-hash rồi discard.
 
 ### Quy tắc 3: Zero-Trust cho đa thiết bị
 
@@ -483,7 +514,9 @@ docker compose up -d
 
 # 2. (Một lần) Seed pepper vào Vault
 docker exec -it phoenixkey-vault-1 vault login phoenixkey-dev-token
-docker exec -it phoenixkey-vault-1 vault kv put secret/phoenixkey server_pepper="dev-pepper-for-local-testing-only-32bytes" pepper_version=1
+docker exec -it phoenixkey-vault-1 vault kv put secret/phoenixkey/pepper \
+  current_version=1 \
+  pepper_1="dev-pepper-for-local-testing-only-32bytes"
 
 # 3. Chạy app
 mvn spring-boot:run
@@ -492,17 +525,19 @@ mvn spring-boot:run
 ### Env bắt buộc
 
 ```env
-# Development (mặc định khi VAULT_ENABLED=false)
-VAULT_ENABLED=false
-SERVER_PEPPER=dev-pepper-for-local-testing-only-32bytes
-
-# Production (Vault thật)
+# Development & Production: luôn dùng HashiCorp Vault
+# Vault chứa TẤT CẢ pepper (hiện tại + lịch sử)
+# Dev: Vault chạy local qua docker-compose
 VAULT_ENABLED=true
-VAULT_ADDR=https://vault.mycompany.com
-VAULT_TOKEN=hvac.AppRole.secret_id.xxx
-DB_HOST=prod-postgres.internal
-DB_PASSWORD=<from AWS Secrets Manager>
+VAULT_ADDR=${VAULT_ADDR:http://localhost:8200}
+VAULT_TOKEN=${VAULT_TOKEN:phoenixkey-dev-token}
+
+# Database
+DB_HOST=${DB_HOST:localhost}
+DB_PASSWORD=${DB_PASSWORD:phoenixkey_dev_password}
 ```
+
+> **Lý do dev luôn dùng Vault:** Multi-version pepper yêu cầu Vault lưu cả lịch sử pepper. Không có fallback config đơn lẻ cho dev vì cần nhiều giá trị pepper cùng lúc.
 
 ### Các lệnh hữu ích
 
