@@ -43,6 +43,9 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         // Actuator info — chỉ internal
                         .requestMatchers("/actuator/info").permitAll()
+                        // Swagger UI + OpenAPI spec — ai cũng đọc được
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
                         // Mọi endpoint API — yêu cầu authenticated
                         // (JWT verify được thực hiện ở API Gateway, không ở DB layer)
                         .requestMatchers("/api/v1/**").authenticated()
