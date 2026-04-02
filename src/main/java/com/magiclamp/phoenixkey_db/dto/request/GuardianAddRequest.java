@@ -5,7 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 /**
  * Request DTO cho {@code POST /api/v1/guardians/add}.
  *
- * <p>
  * Thêm một guardian cho user.
  * Zero-Trust: {@code proof_signature} phải được verify trước khi insert.
  */

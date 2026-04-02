@@ -5,7 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 /**
  * Request DTO cho {@code POST /api/v1/keys/authorize}.
  *
- * <p>
  * Thêm thiết bị/khóa mới cho một user.
  * Zero-Trust: {@code added_by_signature} phải được verify trước khi insert.
  */

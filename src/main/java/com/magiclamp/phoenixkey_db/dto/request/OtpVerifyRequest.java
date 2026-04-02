@@ -1,28 +1,23 @@
 package com.magiclamp.phoenixkey_db.dto.request;
 
-import com.magiclamp.phoenixkey_db.domain.AuthProvider;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
  * Request DTO cho {@code POST /api/v1/auth/otp/verify}.
  *
  * <p>
- * App gửi credential plaintext + OTP. PK_DB:
- * <ol>
- * <li>Hash credential → blind_hash</li>
- * <li>Tra Redis: so sánh OTP</li>
- * <li>Đúng → set is_verified = true</li>
- * <li>Trả về user_did + blind_hash</li>
- * </ol>
+ * App gọi endpoint này sau khi nhận OTP qua SMS/Email từ NestJS.
+ * NestJS đã trả về {@code blind_hash} cho App trong luồng save OTP.
+ *
+ * <p>
+ * PK_DB lookup Redis bằng {@code blind_hash} → so sánh OTP.
  *
  * @see com.magiclamp.phoenixkey_db.dto.response.OtpVerifyResponse
  */
 public record OtpVerifyRequest(
-        @NotBlank(message = "Credential is required") String credential,
+        @NotBlank(message = "Blind hash is required") String blindHash,
 
-        @NotNull(message = "Provider is required") AuthProvider provider,
-
-        @NotBlank(message = "OTP is required") @Size(min = 6, max = 6, message = "OTP must be 6 digits") String otp) {
+        @NotBlank(message = "OTP is required")
+        @Size(min = 6, max = 6, message = "OTP must be 6 digits") String otp) {
 }

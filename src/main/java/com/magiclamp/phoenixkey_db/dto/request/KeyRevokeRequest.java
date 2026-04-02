@@ -5,7 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 /**
  * Request DTO cho {@code POST /api/v1/keys/revoke}.
  *
- * <p>
  * Thu hồi quyền của một thiết bị/khóa.
  * Zero-Trust: {@code signature} phải được verify trước khi revoke.
  */
