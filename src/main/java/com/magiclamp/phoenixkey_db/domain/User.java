@@ -11,19 +11,15 @@ import java.util.UUID;
 /**
  * Lõi Định danh — mỗi dòng = một DID duy nhất trên Blockchain Cardano.
  *
- * <p>
  * PhoenixKey Database KHÔNG lưu PII (tên, email, SĐT) ở đây.
  * Mọi ánh xạ DID ↔ Web2 credentials nằm trong {@link AuthMethod}.
  *
- * <p>
  * Nguyên tắc:
- * <ul>
- * <li>id = UUIDv7 do Backend tạo (timestamp-prefixed, tốt cho B-Tree
- * insert)</li>
- * <li>user_did = DID string bất biến suốt vòng đời user (không đổi kể cả khi
- * key rotation)</li>
- * <li>Tài sản (Job, Jem, NFT) gắn với user_did, không gắn với key</li>
- * </ul>
+ * - id = UUIDv7 do Backend tạo (timestamp-prefixed, tốt cho B-Tree
+ * insert)
+ * - user_did = DID string bất biến suốt vòng đời user (không đổi kể cả khi
+ * key rotation)
+ * - Tài sản (Job, Jem, NFT) gắn với user_did, không gắn với key
  *
  * @see AuthMethod
  * @see AuthorizedKey

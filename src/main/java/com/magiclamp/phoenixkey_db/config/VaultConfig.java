@@ -6,38 +6,27 @@ import org.springframework.context.annotation.Configuration;
 /**
  * HashiCorp Vault configuration — quản lý SERVER_PEPPER.
  *
- * <p>
- * <b>Nguyên tắc bảo mật tuyệt đối:</b>
- * SERVER_PEPPER dùng để tạo Blind Index hash cho email/SĐT.
+ * Nguyên tắc bảo mật tuyệt đối:
+ * - SERVER_PEPPER dùng để tạo Blind Index hash cho email/SĐT.
  * Pepper tuyệt đối KHÔNG được:
- * <ul>
- * <li>Lưu trong file .env</li>
- * <li>Hardcode trong source code</li>
- * <li>Gửi lên Git repository</li>
- * </ul>
+ * - Lưu trong file .env
+ * - Hardcode trong source code
+ * - Gửi lên Git repository
  *
- * <p>
- * <b>Cơ chế hoạt động:</b>
- * <ul>
- * <li>Production: {@code spring.cloud.vault.enabled=true} + token →
+ * Cơ chế hoạt động:
+ * - Production: {@code spring.cloud.vault.enabled=true} + token →
  * Spring Cloud Vault auto-configure
  * {@link org.springframework.vault.core.VaultTemplate}
- * và đọc pepper từ path {@code secret/phoenixkey/server_pepper}</li>
- * <li>Local dev: {@code spring.cloud.vault.enabled=false} → fallback sang
- * property {@code phoenixkey.pepper} trong application.yml</li>
- * </ul>
+ * và đọc pepper từ path {@code secret/phoenixkey/server_pepper}
+ * - Local dev: {@code spring.cloud.vault.enabled=false} → fallback sang
+ * property {@code phoenixkey.pepper} trong application.yml
  *
- * <p>
- * <b>Pepper Rotation (6 tháng/lần):</b>
+ * Pepper Rotation (6 tháng/lần):
  * Khi pepper xoay vòng trên Vault:
- * <ol>
- * <li>Tăng pepper_version lên 2, 3...</li>
- * <li>Hash cũ vẫn verify được (multi-version support)</li>
- * <li>Lần đăng nhập tiếp theo, hệ thống re-hash với pepper mới</li>
- * </ol>
+ * - Tăng pepper_version lên 2, 3...
+ * - Hash cũ vẫn verify được (multi-version support)
+ * - Lần đăng nhập tiếp theo, hệ thống re-hash với pepper mới
  *
- * @see <a href="https://phoenixkey.magiclamp.internal/docs/vault-ops">Vault
- *      Operations</a>
  */
 @Configuration
 public class VaultConfig {

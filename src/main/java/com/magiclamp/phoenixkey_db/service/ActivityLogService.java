@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Service quản lý activity logs.
  *
- * <p>
  * TUYỆT ĐỐI không có method update/delete — logs là append-only.
  */
 @Service

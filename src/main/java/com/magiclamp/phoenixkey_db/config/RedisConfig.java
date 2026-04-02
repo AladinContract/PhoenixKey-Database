@@ -20,21 +20,15 @@ import java.time.Duration;
 /**
  * Redis configuration cho PhoenixKey Database.
  *
- * <p>
- * <b>Ba mục đích sử dụng Redis:</b>
- * <ul>
- * <li>{@code otp:*} — Lưu mã OTP, TTL 5 phút</li>
- * <li>{@code ratelimit:*} — Đếm request/IP, TTL 1 giờ</li>
- * <li>{@code session:*} — Phiên đăng nhập Web2, TTL 24 giờ</li>
- * </ul>
+ * Ba mục đích sử dụng Redis:
+ * - {@code otp:*} — Lưu mã OTP, TTL 5 phút
+ * - {@code ratelimit:*} — Đếm request/IP, TTL 1 giờ
+ * - {@code session:*} — Phiên đăng nhập Web2, TTL 24 giờ
  *
- * <p>
- * <b>Nguyên tắc:</b>
+ * Nguyên tắc:
  * Dữ liệu "sống ngắn" tuyệt đối không được lưu vào SQL.
  * Redis chỉ lưu transient state, không phải persistent data.
  *
- * @see <a href="https://phoenixkey.magiclamp.internal/docs/redis-keys">Redis
- *      Key Patterns</a>
  */
 @Configuration
 public class RedisConfig {

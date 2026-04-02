@@ -14,7 +14,6 @@ import java.util.UUID;
 /**
  * Repository cho {@link com.magiclamp.phoenixkey_db.domain.AuthorizedKey}.
  *
- * <p>
  * Lưu ý: FK dùng {@code user_did} (VARCHAR) nên query chủ yếu theo DID string.
  */
 @Repository

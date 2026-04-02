@@ -14,7 +14,6 @@ import java.util.UUID;
 /**
  * Repository cho {@link com.magiclamp.phoenixkey_db.domain.AuthMethod}.
  *
- * <p>
  * Đây là entry point chính của luồng đăng nhập:
  * tra cứu {@code blind_index_hash} → trả về user_did.
  */

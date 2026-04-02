@@ -13,15 +13,12 @@ public interface IdentityService {
     /**
      * Đăng ký identity mới.
      *
-     * <p>
      * NestJS gọi sau khi App hoàn tất OTP verify.
      * PK_DB:
-     * <ol>
-     *   <li>Hash credential → blind_hash</li>
-     *   <li>Tạo UUIDv7 cho user_id</li>
-     *   <li>Insert users + auth_methods + authorized_keys</li>
-     *   <li>Trả về user_id + user_did</li>
-     * </ol>
+     *   1. Hash credential → blind_hash
+     *   2. Tạo UUIDv7 cho user_id
+     *   3. Insert users + auth_methods + authorized_keys
+     *   4. Trả về user_id + user_did
      *
      * @param request chứa credential + pubkey + signature
      * @return userId + userDid

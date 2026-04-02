@@ -33,9 +33,9 @@ public class IndexerServiceImpl implements IndexerService {
     /**
      * Indexer Worker gọi khi thấy thay đổi trạng thái TAAD trên Blockchain.
      *
-     * <p>
-     * <b>Lưu ý:</b> Recovery approval (guardian ký) được xử lý trực tiếp trên
-     * Smart Contract Cardano. Indexer chỉ sync kết quả cuối cùng (DID Controller đã đổi).
+     * Lưu ý: Recovery approval (guardian ký) được xử lý trực tiếp trên
+     * Smart Contract Cardano. Indexer chỉ sync kết quả cuối cùng (DID Controller đã
+     * đổi).
      */
     @Override
     @Transactional

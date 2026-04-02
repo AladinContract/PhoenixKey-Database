@@ -38,17 +38,13 @@ public class AuthServiceImpl implements AuthService {
     /**
      * Lưu OTP vào Redis.
      *
-     * <p>
      * Flow:
-     * <ol>
-     * <li>NestJS nhận credential từ App</li>
-     * <li>NestJS hash(credential) → blind_hash</li>
-     * <li>NestJS generate OTP</li>
-     * <li>NestJS gửi OTP qua SMS/Email</li>
-     * <li>NestJS gọi endpoint này để lưu OTP vào Redis</li>
-     * </ol>
+     * - NestJS nhận credential từ App
+     * - NestJS hash(credential) → blind_hash
+     * - NestJS generate OTP
+     * - NestJS gửi OTP qua SMS/Email
+     * - NestJS gọi endpoint này để lưu OTP vào Redis
      *
-     * <p>
      * PK_DB chỉ nhận blind_hash + otp. Không biết email/phone thật.
      *
      * @param request chứa blind_hash + otp + provider
@@ -75,15 +71,12 @@ public class AuthServiceImpl implements AuthService {
     /**
      * Verify OTP trong Redis.
      *
-     * <p>
      * Flow:
-     * <ol>
-     * <li>App nhận OTP qua SMS/Email (từ NestJS)</li>
-     * <li>NestJS trả blind_hash cho App</li>
-     * <li>App gọi endpoint này với blind_hash + otp</li>
-     * <li>PK_DB lookup Redis bằng blind_hash → so sánh OTP</li>
-     * <li>Đúng → set is_verified = true</li>
-     * </ol>
+     * - App nhận OTP qua SMS/Email (từ NestJS)
+     * - NestJS trả blind_hash cho App
+     * - App gọi endpoint này với blind_hash + otp
+     * - PK_DB lookup Redis bằng blind_hash → so sánh OTP
+     * - Đúng → set is_verified = true
      *
      * @param request chứa blind_hash + otp
      * @return user_did nếu user đã đăng ký, null nếu user mới

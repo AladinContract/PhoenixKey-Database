@@ -8,25 +8,17 @@ import java.time.OffsetDateTime;
 /**
  * Bộ đệm trạng thái TAAD đọc từ Blockchain Cardano.
  *
- * <p>
- * <b>Nguyên tắc quan trọng:</b>
- * <ul>
- *   <li>Bảng này chỉ được GHI bởi Indexer Worker (đọc từ Cardano)</li>
- *   <li>Không nhận lệnh trực tiếp từ App</li>
- *   <li>Đây là "Kính lúp" để App đọc nhanh, không phải nguồn chân lý</li>
- * </ul>
+ * Nguyên tắc quan trọng:
+ * - Bảng này chỉ được GHI bởi Indexer Worker (đọc từ Cardano)
+ * - Không nhận lệnh trực tiếp từ App
+ * - Đây là "Kính lúp" để App đọc nhanh, không phải nguồn chân lý
  *
- * <p>
  * Chống Race Condition: Indexer Worker chỉ UPDATE khi
  * {@code last_synced_block < block_number_mới}.
  *
- * <p>
  * Chống Reorg: Nếu {@code block_hash} tại cùng height thay đổi →
  * xóa cache và re-sync từ đầu.
  *
- * @see TaadStatus
- * @see <a href="https://github.com/AladinContract/PhoenixKey/tree/main/PoCs/Governance">TAAD
- *      Smart Contract</a>
  */
 @Entity
 @Table(name = "onchain_taad_state_cache")
@@ -70,8 +62,6 @@ public class OnchainTaadStateCache {
      * Deadline khôi phục — lấy từ Time-lock Smart Contract.
      * NULL khi status = ACTIVE.
      *
-     * @see <a href="https://github.com/AladinContract/PhoenixKey/tree/main/PoCs/Governance">Time-lock
-     *      Logic</a>
      */
     @Column(name = "recovery_deadline")
     private OffsetDateTime recoveryDeadline;
@@ -79,7 +69,6 @@ public class OnchainTaadStateCache {
     /**
      * Block number cuối cùng mà Indexer Worker đã sync.
      *
-     * <p>
      * CHỐNG RACE CONDITION (Optimistic Locking):
      * UPDATE chỉ được thực hiện khi {@code last_synced_block < block_mới}.
      * Nếu block mới <= block đang có → từ chối ghi đè.
@@ -90,7 +79,6 @@ public class OnchainTaadStateCache {
     /**
      * Hash của block đã sync.
      *
-     * <p>
      * CHỐNG CHAIN REORG (Rollback):
      * Nếu block_hash tại cùng height thay đổi → reorg detected.
      * → Xóa cache này và re-sync từ đầu.
@@ -115,17 +103,11 @@ public class OnchainTaadStateCache {
      * Kiểm tra xem block mới có hợp lệ để update không.
      * Dùng trong Indexer Worker.
      *
-     * @param newBlock      block number mới từ Cardano
-     * @param newBlockHash  hash của block mới
+     * @param newBlock     block number mới từ Cardano
+     * @param newBlockHash hash của block mới
      * @return true nếu block mới cao hơn hoặc khác hash (reorg)
      */
     public boolean isBlockNewerOrReorg(long newBlock, String newBlockHash) {
-        if (newBlock > lastSyncedBlock) {
-            return true; // Block cao hơn → sync bình thường
-        }
-        if (newBlock == lastSyncedBlock && !blockHash.equals(newBlockHash)) {
-            return true; // Cùng height nhưng hash khác → reorg
-        }
-        return false; // Block thấp hơn hoặc trùng hash → bỏ qua
+        return newBlock > lastSyncedBlock || (newBlock == lastSyncedBlock && !blockHash.equals(newBlockHash));
     }
 }

@@ -13,7 +13,6 @@ import java.util.UUID;
 /**
  * Repository cho {@link com.magiclamp.phoenixkey_db.domain.Guardian}.
  *
- * <p>
  * Guardian là mạng lưới bảo hộ khôi phục danh tính.
  * Mỗi user nên có 3–5 guardian. Ít hơn thì không đủ an toàn,
  * nhiều hơn thì rủi ro guardian malicious cao.

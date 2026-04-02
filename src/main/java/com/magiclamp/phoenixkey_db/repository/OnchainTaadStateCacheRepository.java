@@ -15,12 +15,10 @@ import java.util.Optional;
  * Repository cho
  * {@link com.magiclamp.phoenixkey_db.domain.OnchainTaadStateCache}.
  *
- * <p>
- * <b>Nguyên tắc quan trọng:</b>
- * Bảng này chỉ được GHI bởi Indexer Worker.
- * Không nhận lệnh trực tiếp từ App.
+ * Nguyên tắc quan trọng:
+ * - Bảng này chỉ được GHI bởi Indexer Worker.
+ * - Không nhận lệnh trực tiếp từ App.
  *
- * <p>
  * Tất cả update đều phải qua optimistic locking check
  * ({@code last_synced_block < new_block}).
  */

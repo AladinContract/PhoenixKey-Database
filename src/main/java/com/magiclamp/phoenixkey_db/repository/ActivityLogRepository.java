@@ -15,18 +15,14 @@ import java.util.UUID;
 /**
  * Repository cho {@link com.magiclamp.phoenixkey_db.domain.ActivityLog}.
  *
- * <p>
- * <b>Chỉ INSERT — tuyệt đối không UPDATE/DELETE.</b>
+ * Chỉ INSERT — tuyệt đối không UPDATE/DELETE.
  * Trigger {@code enforce_append_only} ở tầng DB sẽ block mọi sửa/xóa.
  *
- * <p>
  * Tất cả query chỉ đọc (SELECT). Các method {@code delete*} chỉ dùng cho:
- * <ul>
- * <li>GDPR: xóa user → cascade xóa log (trigger sẽ block, dùng batch delete thủ
- * công nếu cần)</li>
- * <li>Data retention: xóa log cũ hơn N ngày (chạy định kỳ, cần DBA
- * approve)</li>
- * </ul>
+ * - GDPR: xóa user → cascade xóa log (trigger sẽ block, dùng batch delete thủ
+ * công nếu cần)
+ * - Data retention: xóa log cũ hơn N ngày (chạy định kỳ, cần DBA
+ * approve)
  */
 @Repository
 public interface ActivityLogRepository extends JpaRepository<ActivityLog, UUID> {
@@ -132,7 +128,6 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, UUID> 
      * Đếm số failed login gần đây của một IP hash.
      * Dùng cho rate limiting (block IP nếu vượt ngưỡng).
      *
-     * <p>
      * Dùng native query vì Hibernate 6 không hỗ trợ JSONB bracket
      * notation {@code a.metadata['key']} trong JPQL.
      *

@@ -9,16 +9,13 @@ import java.util.UUID;
 /**
  * Mạng lưới bảo hộ khôi phục danh tính (Social Guardians).
  *
- * <p>
  * Khi user mất thiết bị/khóa, Guardian là người có thể hỗ trợ
  * khôi phục danh tính thông qua cơ chế TAAD (Social Recovery).
  *
- * <p>
  * ZERO-TRUST: {@code proof_signature} là chữ ký của User chứng minh
  * họ thực sự mời người này làm Guardian.
  * Backend phải verify chữ ký này trước khi INSERT.
  *
- * <p>
  * Constraint UNIQUE(user_id, guardian_did): mỗi user chỉ có 1 guardian_did 1
  * lần.
  */

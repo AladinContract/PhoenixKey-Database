@@ -7,16 +7,13 @@ import org.springframework.http.HttpStatus;
 /**
  * Mã lỗi cho toàn bộ PhoenixKey Database.
  *
- * <p>
  * Quy tắc đánh số:
- * <ul>
- * <li>1xxx — Auth / Đăng nhập / OTP</li>
- * <li>2xxx — User / DID</li>
- * <li>3xxx — Authorized Key / Thiết bị</li>
- * <li>4xxx — Guardian / Social Recovery</li>
- * <li>5xxx — TAAD / On-chain State</li>
- * <li>9xxx — System errors</li>
- * </ul>
+ * - 1xxx — Auth / Đăng nhập / OTP
+ * - 2xxx — User / DID
+ * - 3xxx — Authorized Key / Thiết bị
+ * - 4xxx — Guardian / Social Recovery
+ * - 5xxx — TAAD / On-chain State
+ * - 9xxx — System errors
  */
 @Getter
 @AllArgsConstructor

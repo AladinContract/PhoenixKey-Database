@@ -12,33 +12,25 @@ import java.util.UUID;
 /**
  * Nhật ký kiểm toán bất biến (Immutable Audit Trail).
  *
- * <p>
- * <b>Append-Only — không ai được UPDATE hoặc DELETE.</b>
+ * Append-Only — không ai được UPDATE hoặc DELETE.
  * Trigger {@code enforce_append_only} ở tầng Database enforce điều này.
  * Kể cả DBA cũng không được sửa hay xóa log.
  *
- * <p>
  * Các action thường gặy:
- * <ul>
- * <li>Auth: {@code login_success}, {@code login_failed}, {@code otp_sent},
- * {@code otp_failed}</li>
- * <li>Key: {@code key_authorized}, {@code key_revoked},
- * {@code key_rotated}</li>
- * <li>Recovery: {@code recovery_initiated}, {@code recovery_cancelled},
- * {@code recovery_finalized}</li>
- * <li>Guardian: {@code guardian_added}, {@code guardian_removed}</li>
- * <li>Sync: {@code taad_synced}</li>
- * </ul>
+ * - Auth: {@code login_success}, {@code login_failed}, {@code otp_sent},
+ * {@code otp_failed}
+ * - Key: {@code key_authorized}, {@code key_revoked},
+ * {@code key_rotated}
+ * - Recovery: {@code recovery_initiated}, {@code recovery_cancelled},
+ * {@code recovery_finalized}
+ * - Guardian: {@code guardian_added}, {@code guardian_removed}
+ * - Sync: {@code taad_synced}
  *
- * <p>
- * <b>Lưu ý PII:</b>
+ * Lưu ý PII:
  * Cột {@code metadata} tuyệt đối KHÔNG được chứa PII
  * (số điện thoại, email, tên, địa chỉ IP thật).
  * Chỉ lưu: IP hash, OS version, device fingerprint hash.
- *
- * @see <a href="https://phoenixkey.magiclamp.internal/docs/audit-trail">Audit
- *      Trail
- *      Design</a>
+ * 
  */
 @Entity
 @Table(name = "activity_logs", indexes = {
@@ -79,13 +71,10 @@ public class ActivityLog {
     /**
      * Metadata linh hoạt dạng JSONB.
      *
-     * <p>
      * TUYỆT ĐỐI KHÔNG CHỨA PII.
      *
-     * <p>
      * Ví dụ metadata hợp lệ:
      *
-     * <pre>
      * {
      *   "ip_hash": "sha256:abc123...",
      *   "os": "Android 14",
@@ -93,7 +82,6 @@ public class ActivityLog {
      *   "provider": "google",
      *   "fail_reason": "invalid_otp"
      * }
-     * </pre>
      */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata", columnDefinition = "jsonb")

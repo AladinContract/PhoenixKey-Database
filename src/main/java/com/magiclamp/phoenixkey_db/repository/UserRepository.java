@@ -12,12 +12,9 @@ import java.util.UUID;
 /**
  * Repository cho {@link com.magiclamp.phoenixkey_db.domain.User}.
  *
- * <p>
  * Chỉ có 2 cách tra cứu hợp lệ:
- * <ul>
- * <li>Theo id (UUIDv7)</li>
- * <li>Theo user_did (DID string)</li>
- * </ul>
+ * - Theo id (UUIDv7)
+ * - Theo user_did (DID string)
  * Không tra cứu theo email/SĐT ở đây — xem {@link AuthMethodRepository}.
  */
 @Repository

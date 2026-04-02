@@ -12,7 +12,6 @@ public interface KeyService {
     /**
      * Thêm khóa/ thiết bị mới cho user.
      *
-     * <p>
      * Zero-Trust: {@code added_by_signature} phải được verify trước khi insert.
      *
      * @param request chứa userDid + pubkey + signature
@@ -23,7 +22,6 @@ public interface KeyService {
     /**
      * Thu hồi khóa của user.
      *
-     * <p>
      * Zero-Trust: {@code signature} phải được verify trước khi revoke.
      */
     void revoke(KeyRevokeRequest request);

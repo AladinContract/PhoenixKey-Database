@@ -3,12 +3,9 @@ package com.magiclamp.phoenixkey_db.domain;
 /**
  * Enum ánh xạ với PostgreSQL TYPE taad_status.
  *
- * <p>
  * Ánh xạ tuyệt đối với định nghĩa trong migration V4:
  * 
- * <pre>
  * CREATE TYPE taad_status AS ENUM ('ACTIVE', 'RECOVERING', 'MIGRATED');
- * </pre>
  */
 public enum TaadStatus {
     /** Bình thường: chủ DID đang kiểm soát tài khoản. */

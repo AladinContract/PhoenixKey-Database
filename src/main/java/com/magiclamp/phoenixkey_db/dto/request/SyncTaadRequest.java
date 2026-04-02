@@ -7,14 +7,11 @@ import jakarta.validation.constraints.NotNull;
 /**
  * Request DTO cho {@code POST /api/v1/internal/sync-taad}.
  *
- * <p>
  * Indexer Worker gọi sau khi quét block mới từ Cardano.
  * PK_DB thực hiện optimistic locking:
- * <ul>
- *   <li>Nếu {@code last_synced_block < new_block} → cập nhật</li>
- *   <li>Nếu {@code last_synced_block >= new_block} → bỏ qua (stale)</li>
- *   <li>Nếu {@code block_hash} không khớp → reorg detected → xóa cache</li>
- * </ul>
+ *   - Nếu {@code last_synced_block < new_block} → cập nhật
+ *   - Nếu {@code last_synced_block >= new_block} → bỏ qua (stale)
+ *   - Nếu {@code block_hash} không khớp → reorg detected → xóa cache
  */
 public record SyncTaadRequest(
         @NotBlank(message = "User DID is required")

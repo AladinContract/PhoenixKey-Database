@@ -14,13 +14,10 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Service quản lý Redis cache cho OTP, Session, Rate Limit.
  *
- * <p>
  * Ba mục đích:
- * <ul>
- * <li>{@code otp:auth:{blind_hash}} — Lưu OTP, TTL 5 phút</li>
- * <li>{@code ratelimit:ip:{ip_hash}} — Đếm request/IP, TTL 1 giờ</li>
- * <li>{@code session:token:{jwt_hash}} — Phiên đăng nhập, TTL 24 giờ</li>
- * </ul>
+ * - {@code otp:auth:{blind_hash}} — Lưu OTP, TTL 5 phút
+ * - {@code ratelimit:ip:{ip_hash}} — Đếm request/IP, TTL 1 giờ
+ * - {@code session:token:{jwt_hash}} — Phiên đăng nhập, TTL 24 giờ
  */
 @Service
 @RequiredArgsConstructor

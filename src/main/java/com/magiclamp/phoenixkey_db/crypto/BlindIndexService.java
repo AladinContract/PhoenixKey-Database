@@ -14,23 +14,18 @@ import org.springframework.stereotype.Service;
 /**
  * Blind Index Service — triển khai HMAC-SHA256 + Pepper để hash credentials.
  *
- * <p>
- * <b>Zero-PII:</b> Thay vì lưu email/SĐT plaintext, hệ thống lưu
+ * Zero-PII: Thay vì lưu email/SĐT plaintext, hệ thống lưu
  * {@code HMAC-SHA256(input, SERVER_PEPPER)}.
  * Nếu DB bị hack, hacker chỉ nhận được hash vô nghĩa.
  *
- * <p>
- * <b>Pepper Rotation (6 tháng/lần):</b>
+ * Pepper Rotation (6 tháng/lần):
  * Khi Pepper xoay vòng trên Vault, {@code pepperVersion} tăng lên.
  * Hệ thống phải re-hash credentials cũ ở lần đăng nhập tiếp theo của user.
  *
- * <p>
- * <b>Tại sao HMAC-SHA256 thay vì SHA-256 thường?</b>
+ * Tại sao HMAC-SHA256 thay vì SHA-256 thường?
  * SHA-256 đơn giản dễ bị tấn công Rainbow Table.
  * HMAC thêm key bí mật (Pepper) → không thể compute hash mà không có Pepper.
  *
- * @see <a href="https://phoenixkey.magiclamp.internal/docs/zero-pii">Zero-PII
- *      Design</a>
  */
 @Service
 public class BlindIndexService {
