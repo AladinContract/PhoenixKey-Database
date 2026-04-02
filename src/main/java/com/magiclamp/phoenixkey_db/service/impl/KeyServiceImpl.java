@@ -42,15 +42,11 @@ public class KeyServiceImpl implements KeyService {
         User user = userRepository.findByUserDid(request.userDid())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_DID_NOT_FOUND));
 
-        // Check: key chưa được authorized?
+        // Check: key chưa được authorized cho user này?
+        // Chỉ check active key của chính user — không block key đã revoked
+        // (revoked key có thể được authorize lại sau khi revoke)
         if (authorizedKeyRepository.existsByUserUserDidAndPublicKeyHexAndStatus(
                 request.userDid(), request.publicKeyHex(), "active")) {
-            throw new AppException(ErrorCode.KEY_ALREADY_AUTHORIZED);
-        }
-
-        // Check: key đã revoked trước đó?
-        if (authorizedKeyRepository.existsByPublicKeyHex(request.publicKeyHex())) {
-            // Key đã tồn tại → không cho phép insert lại
             throw new AppException(ErrorCode.KEY_ALREADY_AUTHORIZED);
         }
 
