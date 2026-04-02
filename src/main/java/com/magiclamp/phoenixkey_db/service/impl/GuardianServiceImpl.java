@@ -10,6 +10,8 @@ import com.magiclamp.phoenixkey_db.common.UuidGenerator;
 import com.magiclamp.phoenixkey_db.domain.Guardian;
 import com.magiclamp.phoenixkey_db.domain.User;
 import com.magiclamp.phoenixkey_db.dto.request.GuardianAddRequest;
+import com.magiclamp.phoenixkey_db.dto.request.GuardianRemoveRequest;
+import com.magiclamp.phoenixkey_db.dto.response.GuardianRemoveResponse;
 import com.magiclamp.phoenixkey_db.dto.response.GuardianAddResponse;
 import com.magiclamp.phoenixkey_db.exception.AppException;
 import com.magiclamp.phoenixkey_db.exception.ErrorCode;
@@ -70,5 +72,37 @@ public class GuardianServiceImpl implements GuardianService {
                 Map.of("guardian_did", request.guardianDid()));
 
         return new GuardianAddResponse((int) newCount);
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Remove Guardian
+    // ──────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public GuardianRemoveResponse removeGuardian(GuardianRemoveRequest request) {
+        // Verify user tồn tại
+        User user = userRepository.findByUserDid(request.userDid())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_DID_NOT_FOUND));
+
+        // Revoke guardian (chỉ revoke nếu đang active)
+        int updated = guardianRepository.revokeByUserIdAndGuardianDid(
+                user.getId(), request.guardianDid());
+
+        if (updated == 0) {
+            throw new AppException(ErrorCode.GUARDIAN_NOT_FOUND);
+        }
+
+        long remainingCount = guardianRepository.countActiveByUserId(user.getId());
+
+        log.info("Guardian removed: userDid={}, guardianDid={}, remaining={}",
+                request.userDid(), request.guardianDid(), remainingCount);
+
+        activityLogService.log(
+                user.getId(),
+                ActivityLogService.ACTION_GUARDIAN_REMOVED,
+                Map.of("guardian_did", request.guardianDid()));
+
+        return new GuardianRemoveResponse((int) remainingCount);
     }
 }
