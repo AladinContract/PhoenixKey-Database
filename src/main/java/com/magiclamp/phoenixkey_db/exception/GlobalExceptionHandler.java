@@ -6,7 +6,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import com.magiclamp.phoenixkey_db.common.ApiResponse;
+import com.magiclamp.phoenixkey_db.common.DataResponse;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -32,9 +32,9 @@ public class GlobalExceptionHandler {
     // ──────────────────────────────────────────────────────────────
 
     @ExceptionHandler(AppException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAppException(AppException ex) {
+    public ResponseEntity<DataResponse<Void>> handleAppException(AppException ex) {
         log.warn("[{}] {} — {}", ex.getErrorCode().getCode(), ex.getMessage(), ex.getErrorCode().name());
-        ApiResponse<Void> response = ApiResponse.<Void>builder()
+        DataResponse<Void> response = DataResponse.<Void>builder()
                 .code(ex.getErrorCode().getCode())
                 .message(ex.getMessage())
                 .build();
@@ -48,9 +48,9 @@ public class GlobalExceptionHandler {
     // ──────────────────────────────────────────────────────────────
 
     @ExceptionHandler(EntityNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleEntityNotFound(EntityNotFoundException ex) {
+    public ResponseEntity<DataResponse<Void>> handleEntityNotFound(EntityNotFoundException ex) {
         log.warn("Entity not found: {}", ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.<Void>builder()
+        DataResponse<Void> response = DataResponse.<Void>builder()
                 .code(ErrorCode.USER_NOT_FOUND.getCode())
                 .message("Resource not found")
                 .build();
@@ -64,14 +64,14 @@ public class GlobalExceptionHandler {
     // ──────────────────────────────────────────────────────────────
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException ex) {
+    public ResponseEntity<DataResponse<Void>> handleValidation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(e -> e.getField() + ": " + e.getDefaultMessage())
                 .reduce((a, b) -> a + "; " + b)
                 .orElse("Validation failed");
 
         log.warn("Validation error: {}", message);
-        ApiResponse<Void> response = ApiResponse.<Void>builder()
+        DataResponse<Void> response = DataResponse.<Void>builder()
                 .code(ErrorCode.ENUM_INVALID_VALUE.getCode())
                 .message(message)
                 .build();
@@ -85,9 +85,9 @@ public class GlobalExceptionHandler {
     // ──────────────────────────────────────────────────────────────
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
+    public ResponseEntity<DataResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
         log.warn("Illegal argument: {}", ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.<Void>builder()
+        DataResponse<Void> response = DataResponse.<Void>builder()
                 .code(ErrorCode.ENUM_INVALID_VALUE.getCode())
                 .message(ex.getMessage())
                 .build();
@@ -101,9 +101,9 @@ public class GlobalExceptionHandler {
     // ──────────────────────────────────────────────────────────────
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleUnknown(Exception ex) {
+    public ResponseEntity<DataResponse<Void>> handleUnknown(Exception ex) {
         log.error("Unexpected error", ex);
-        ApiResponse<Void> response = ApiResponse.<Void>builder()
+        DataResponse<Void> response = DataResponse.<Void>builder()
                 .code(ErrorCode.SYSTEM_INTERNAL_ERROR.getCode())
                 .message("Internal server error")
                 .build();
