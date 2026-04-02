@@ -1,57 +1,43 @@
 package com.magiclamp.phoenixkey_db.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestTemplate;
 
 /**
- * HashiCorp Vault configuration — quản lý SERVER_PEPPER.
+ * HashiCorp Vault configuration.
  *
- * Nguyên tắc bảo mật tuyệt đối:
- * - SERVER_PEPPER dùng để tạo Blind Index hash cho email/SĐT.
- * Pepper tuyệt đối KHÔNG được:
- * - Lưu trong file .env
- * - Hardcode trong source code
- * - Gửi lên Git repository
+ * Dùng RestTemplate gọi Vault HTTP API trực tiếp — không cần spring-vault-core.
+ * Vault KV v2 REST API: GET /v1/secret/data/<path>
  *
- * Cơ chế hoạt động:
- * - Production: {@code spring.cloud.vault.enabled=true} + token →
- * Spring Cloud Vault auto-configure
- * {@link org.springframework.vault.core.VaultTemplate}
- * và đọc pepper từ path {@code secret/phoenixkey/server_pepper}
- * - Local dev: {@code spring.cloud.vault.enabled=false} → fallback sang
- * property {@code phoenixkey.pepper} trong application.yml
- *
- * Pepper Rotation (6 tháng/lần):
- * Khi pepper xoay vòng trên Vault:
- * - Tăng pepper_version lên 2, 3...
- * - Hash cũ vẫn verify được (multi-version support)
- * - Lần đăng nhập tiếp theo, hệ thống re-hash với pepper mới
- *
+ * Nguyên tắc bảo mật:
+ * - Pepper tuyệt đối KHÔNG được lưu trong file .env / hardcode / git.
+ * - Token được đọc từ environment variable.
  */
 @Configuration
 public class VaultConfig {
 
-    @Value("${spring.cloud.vault.enabled:false}")
-    private boolean vaultEnabled;
-
     @Value("${spring.cloud.vault.uri:http://localhost:8200}")
     private String vaultUri;
 
-    @Value("${spring.cloud.vault.token:}")
-    private String vaultToken;
-
-    @Value("${spring.cloud.vault.kv.backend:secret}")
-    private String kvBackend;
-
-    @Value("${spring.cloud.vault.kv.default-context:phoenixkey}")
-    private String kvContext;
-
     /**
-     * Kiểm tra Vault có được enable không.
-     *
-     * @return true nếu dùng Vault (production)
+     * RestTemplate để gọi Vault HTTP API.
+     * Vault dev mode dùng HTTP (không HTTPS).
      */
-    public boolean isVaultEnabled() {
-        return vaultEnabled;
+    @Bean
+    public RestTemplate vaultRestTemplate() {
+        RestTemplate template = new RestTemplate();
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(5000);
+        template.setRequestFactory(factory);
+        return template;
+    }
+
+    /** URI của Vault server. */
+    public String getVaultUri() {
+        return vaultUri;
     }
 }
