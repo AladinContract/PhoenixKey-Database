@@ -57,9 +57,4 @@ yarn-error.log*
 *.bak
 
 ### Documents
-*.docx
-# *.txt
-PhoenixKey-DB-API.md
-DEVELOPMENT.md
-DATABASE.md
-API.md
+/docs/
