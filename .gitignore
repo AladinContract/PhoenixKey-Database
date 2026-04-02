@@ -1,63 +1,64 @@
-### 🚫 Build files
+### Build files
 /target/
 /build/
 /out/
 
-### 🚫 Logs
+### Logs
 *.log
 logs/
 *.out
 
-### 🚫 Spring Boot
+### Spring Boot
 *.jar
 *.war
 *.ear
 *.class
 
-### 🚫 Application properties (local override)
+### Application properties (local override)
 application-local.yml
 application-local.properties
 application-dev.yml
 application-dev.properties
 
-### 🚫 OS files
+### OS files
 .DS_Store
 Thumbs.db
 
-### 🚫 IDE - IntelliJ IDEA
+### IDE - IntelliJ IDEA
 .idea/
 *.iml
 
-### 🚫 IDE - Eclipse
+### IDE - Eclipse
 .project
 .classpath
 .settings/
 
-### 🚫 IDE - VS Code
+### IDE - VS Code
 .vscode/
 
-### 🚫 Node (nếu có frontend)
+### Node (nếu có frontend)
 node_modules/
 dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-### 🚫 Test reports
+### Test reports
 /test-output/
 /surefire-reports/
 
-### 🚫 Docker
+### Docker
 *.env
 .env
 
-### 🚫 Misc
+### Misc
 *.tmp
 *.swp
 *.bak
 
-### 🚫 Documents
+### Documents
 *.docx
+# *.txt
 PhoenixKey-DB-API.md
 DEVELOPMENT.md
 DATABASE.md
