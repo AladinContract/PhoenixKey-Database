@@ -36,6 +36,7 @@ public class RedisService {
     private int rateLimitTtlSeconds;
 
     private static final String OTP_PREFIX = "otp:auth:";
+    private static final String OTP_CRED_PREFIX = "otp:cred:";  // credential kèm OTP (dùng cho re-hash)
     private static final String RATE_LIMIT_PREFIX = "ratelimit:ip:";
     private static final String SESSION_PREFIX = "session:token:";
 
@@ -46,15 +47,18 @@ public class RedisService {
     // ──────────────────────────────────────────────────────────────
 
     /**
-     * Lưu OTP vào Redis.
+     * Lưu OTP + credential vào Redis.
      *
-     * @param blindHash HMAC-SHA256 hash của credential
-     * @param otp       Mã OTP 6 chữ số
+     * @param blindHash   HMAC-SHA256 hash của credential
+     * @param otp         Mã OTP 6 chữ số
+     * @param credential  Credential gốc (email/phone) — dùng để re-hash khi pepper rotate
      */
-    public void saveOtp(String blindHash, String otp) {
-        String key = OTP_PREFIX + blindHash;
-        redisTemplate.opsForValue().set(key, otp, Duration.ofSeconds(otpTtlSeconds));
-        log.debug("OTP saved for blind_hash={}, ttl={}s", blindHash, otpTtlSeconds);
+    public void saveOtp(String blindHash, String otp, String credential) {
+        String otpKey = OTP_PREFIX + blindHash;
+        String credKey = OTP_CRED_PREFIX + blindHash;
+        redisTemplate.opsForValue().set(otpKey, otp, Duration.ofSeconds(otpTtlSeconds));
+        redisTemplate.opsForValue().set(credKey, credential, Duration.ofSeconds(otpTtlSeconds));
+        log.debug("OTP + credential saved for blind_hash={}, ttl={}s", blindHash, otpTtlSeconds);
     }
 
     /**
@@ -68,12 +72,24 @@ public class RedisService {
     }
 
     /**
-     * Xóa OTP khỏi Redis (sau khi verify thành công hoặc hết hạn).
+     * Xóa OTP + credential khỏi Redis (sau khi verify thành công hoặc hết hạn).
      *
      * @param blindHash blind hash của credential
      */
     public void deleteOtp(String blindHash) {
         redisTemplate.delete(OTP_PREFIX + blindHash);
+        redisTemplate.delete(OTP_CRED_PREFIX + blindHash);
+    }
+
+    /**
+     * Lấy credential gốc từ Redis (dùng để re-hash sau khi pepper rotate).
+     *
+     * @param blindHash blind hash của credential
+     * @return credential nếu còn, empty nếu hết hạn
+     */
+    public Optional<String> getCredential(String blindHash) {
+        return Optional.ofNullable(
+                redisTemplate.opsForValue().get(OTP_CRED_PREFIX + blindHash));
     }
 
     /**
