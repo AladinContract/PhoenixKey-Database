@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.magiclamp.phoenixkey_db.domain.AuthMethod;
+import com.magiclamp.phoenixkey_db.crypto.BlindIndexService;
 import com.magiclamp.phoenixkey_db.dto.request.OtpSendRequest;
 import com.magiclamp.phoenixkey_db.dto.request.OtpVerifyRequest;
 import com.magiclamp.phoenixkey_db.dto.response.OtpVerifyResponse;
@@ -28,6 +29,7 @@ public class AuthServiceImpl implements AuthService {
     private final RedisService redisService;
     private final ActivityLogService activityLogService;
     private final AuthMethodRepository authMethodRepository;
+    private final BlindIndexService blindIndexService;
 
     private static final String REASON = "reason";
 
@@ -43,21 +45,20 @@ public class AuthServiceImpl implements AuthService {
      * - NestJS hash(credential) → blind_hash
      * - NestJS generate OTP
      * - NestJS gửi OTP qua SMS/Email
-     * - NestJS gọi endpoint này để lưu OTP vào Redis
+     * - NestJS gọi endpoint này để lưu OTP + credential vào Redis
      *
-     * PK_DB chỉ nhận blind_hash + otp. Không biết email/phone thật.
+     * PK_DB nhận blind_hash + otp + credential.
+     * Credential được dùng để re-hash blind_index_hash khi pepper rotate —
+     * không lưu vào DB (Zero-PII).
      *
-     * @param request chứa blind_hash + otp + provider
+     * @param request chứa blind_hash + otp + provider + credential
      */
     @Override
     public void saveOtp(OtpSendRequest request) {
-        String blindHash = request.blindHash();
-        String otp = request.otp();
+        // Lưu OTP + credential vào Redis
+        redisService.saveOtp(request.blindHash(), request.otp(), request.credential());
 
-        // Lưu OTP vào Redis
-        redisService.saveOtp(blindHash, otp);
-
-        log.info("OTP saved: blind_hash={}, provider={}", blindHash, request.provider());
+        log.info("OTP saved: blind_hash={}, provider={}", request.blindHash(), request.provider());
 
         activityLogService.log(
                 ActivityLogService.ACTION_OTP_SENT,
@@ -116,7 +117,10 @@ public class AuthServiceImpl implements AuthService {
             throw new AppException(ErrorCode.OTP_INVALID);
         }
 
-        // OTP đúng → xóa khỏi Redis
+        // OTP đúng → lấy credential từ Redis (dùng để re-hash sau)
+        Optional<String> credentialOpt = redisService.getCredential(blindHash);
+
+        // Xóa OTP + credential khỏi Redis
         redisService.deleteOtp(blindHash);
         redisService.resetOtpAttempts(blindHash);
 
@@ -126,14 +130,29 @@ public class AuthServiceImpl implements AuthService {
 
         String userDid = null;
         if (authMethod != null) {
-            // User đã đăng ký → cập nhật is_verified
+            // User đã đăng ký
+            int currentVersion = blindIndexService.getCurrentPepperVersion();
+            boolean needsRehash = authMethod.getPepperVersion() < currentVersion;
+
+            if (needsRehash && credentialOpt.isPresent()) {
+                // Pepper đã rotate → re-hash blind_index_hash với pepper mới
+                String newBlindHash = blindIndexService.hash(credentialOpt.get());
+                authMethod.setBlindIndexHash(newBlindHash);
+                authMethod.setPepperVersion(currentVersion);
+                log.info("Blind index re-hashed: userDid={}, old_version={}, new_version={}",
+                        authMethod.getUser().getUserDid(),
+                        authMethod.getPepperVersion(), currentVersion);
+            }
+
             authMethod.setIsVerified(true);
             authMethodRepository.save(authMethod);
             userDid = authMethod.getUser().getUserDid();
+
             activityLogService.log(
                     authMethod.getUser().getId(),
                     ActivityLogService.ACTION_LOGIN_SUCCESS,
-                    Map.of("provider", authMethod.getProvider().name()));
+                    Map.of("provider", authMethod.getProvider().name(),
+                            "pepper_rehashed", String.valueOf(needsRehash)));
         } else {
             // User mới → OTP đúng nhưng chưa đăng ký
             activityLogService.log(
