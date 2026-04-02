@@ -1,6 +1,7 @@
 package com.magiclamp.phoenixkey_db.service;
 
 import com.magiclamp.phoenixkey_db.dto.request.IdentityRegisterRequest;
+import com.magiclamp.phoenixkey_db.dto.request.UserDidUpdateRequest;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityPubkeyResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityRegisterResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityStatusResponse;
@@ -40,4 +41,16 @@ public interface IdentityService {
      * @return status, controller PKH, sequence, deadline
      */
     IdentityStatusResponse getStatus(String userDid);
+
+    /**
+     * Update userDid sau khi NestJS mint DID trên Cardano.
+     *
+     * Sau khi App đăng ký → PK_DB tạo user với userDid = "pending".
+     * NestJS mint DID xong → gọi endpoint này để update DID thực sự.
+     *
+     * @param request chứa userId + userDid đã mint
+     * @throws AppException(ErrorCode.USER_NOT_FOUND) nếu userId không tồn tại
+     * @throws AppException(ErrorCode.USER_DID_ALREADY_EXISTS) nếu DID đã được gán cho user khác
+     */
+    void updateUserDid(UserDidUpdateRequest request);
 }

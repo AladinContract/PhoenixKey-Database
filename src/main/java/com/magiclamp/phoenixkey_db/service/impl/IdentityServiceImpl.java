@@ -13,6 +13,7 @@ import com.magiclamp.phoenixkey_db.domain.AuthMethod;
 import com.magiclamp.phoenixkey_db.domain.AuthorizedKey;
 import com.magiclamp.phoenixkey_db.domain.User;
 import com.magiclamp.phoenixkey_db.dto.request.IdentityRegisterRequest;
+import com.magiclamp.phoenixkey_db.dto.request.UserDidUpdateRequest;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityPubkeyResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityRegisterResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityStatusResponse;
@@ -134,5 +135,36 @@ public class IdentityServiceImpl implements IdentityService {
                                 ? cache.getRecoveryDeadline().toString()
                                 : null))
                 .orElseThrow(() -> new AppException(ErrorCode.TAAD_STATE_NOT_FOUND));
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Update DID
+    // ──────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public void updateUserDid(UserDidUpdateRequest request) {
+        // Tìm user theo ID
+        User user = userRepository.findById(request.userId())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        // Check: userDid mới đã được gán cho user khác chưa?
+        if (!user.getUserDid().equals(request.userDid())
+                && userRepository.existsByUserDid(request.userDid())) {
+            throw new AppException(ErrorCode.USER_DID_ALREADY_EXISTS);
+        }
+
+        String oldDid = user.getUserDid();
+        user.setUserDid(request.userDid());
+        userRepository.save(user);
+
+        log.info("UserDid updated: userId={}, oldDid={}, newDid={}",
+                request.userId(), oldDid, request.userDid());
+
+        activityLogService.log(
+                user.getId(),
+                ActivityLogService.ACTION_DID_UPDATED,
+                Map.of("old_did", oldDid,
+                        "new_did", request.userDid()));
     }
 }

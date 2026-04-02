@@ -32,6 +32,7 @@ public class ActivityLogService {
     public static final String ACTION_LOGIN_SUCCESS = "login_success";
     public static final String ACTION_LOGIN_FAILED = "login_failed";
     public static final String ACTION_USER_REGISTERED = "user_registered";
+    public static final String ACTION_DID_UPDATED = "did_updated";
     public static final String ACTION_KEY_AUTHORIZED = "key_authorized";
     public static final String ACTION_KEY_REVOKED = "key_revoked";
     public static final String ACTION_KEY_ROTATED = "key_rotated";
