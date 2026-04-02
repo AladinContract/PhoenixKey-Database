@@ -14,16 +14,12 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Global exception handler — bắt mọi exception và trả về ApiResponse.
  *
- * <p>
  * Luồng:
  *
- * <pre>
- * 1. Controller ném AppException(ErrorCode.XXX)
+ * 1. Controller ném AppException(ErrorCode.XXXX)
  * 2. GlobalExceptionHandler bắt
  * 3. Trả về ApiResponse với code + message + HTTP status tương ứng
- * </pre>
  *
- * <p>
  * HTTP status chỉ dùng để báo cho API Gateway / load balancer,
  * response body luôn là {@code ApiResponse}.
  */
