@@ -60,9 +60,13 @@ public class ActivityLog {
     /**
      * User thực hiện hành động.
      * Nullable — có thể là log trước khi user tồn tại (VD: failed login attempt).
+     * Dùng userId cho logging (không cần load entity), dùng user cho JPA relation.
      */
+    @Column(name = "user_id")
+    private UUID userId;
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", insertable = false, updatable = false)
     private User user;
 
     /**

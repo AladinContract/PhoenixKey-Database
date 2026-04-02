@@ -38,15 +38,10 @@ public class BlindIndexService {
     private static final String HMAC_ALGO = "HmacSHA256";
     private static final String HASH_ALGO = "SHA-256";
 
-    /**
-     * Pepper hiện tại — đọc từ HashiCorp Vault khi khởi động.
-     * TUYỆT ĐỐI KHÔNG hardcode trong source code.
-     */
+    /** Pepper hiện tại — đọc từ HashiCorp Vault khi khởi động. */
     private final String currentPepper;
 
-    /**
-     * Phiên bản Pepper hiện tại (dùng để so sánh với pepper_version trong DB).
-     */
+    /** Phiên bản Pepper hiện tại. */
     private final int currentPepperVersion;
 
     public BlindIndexService(
@@ -56,20 +51,16 @@ public class BlindIndexService {
         this.currentPepperVersion = pepperVersion;
     }
 
+    /** Lấy phiên bản pepper hiện tại. */
+    public int getCurrentPepperVersion() {
+        return currentPepperVersion;
+    }
+
     /**
-     * Hash một credential (email/SĐT) bằng HMAC-SHA256 + Pepper hiện tại.
+     * Hash credential bằng HMAC-SHA256 + Pepper hiện tại.
      *
-     * <p>
-     * Luồng đăng nhập:
-     *
-     * <pre>
-     * 1. User nhập email → blindHash(credential)
-     * 2. SELECT * FROM auth_methods WHERE blind_index_hash = :blindHash
-     * 3. Trả về user_did → tạo session
-     * </pre>
-     *
-     * @param credential email hoặc số điện thoại thuần (normalize trước khi gọi)
-     * @return hex string 64 ký tự (HMAC-SHA256 output)
+     * @param credential email hoặc số điện thoại thuần
+     * @return hex string 64 ký tự
      */
     public String hash(String credential) {
         return computeHmac(credential, currentPepper);
@@ -77,17 +68,9 @@ public class BlindIndexService {
 
     /**
      * Hash credential với phiên bản Pepper cụ thể.
-     *
-     * <p>
-     * Dùng khi verify hash cũ (pepper_version trong DB < currentPepperVersion).
-     *
-     * @param credential    email/SĐT thuần
-     * @param pepperVersion phiên bản pepper cần dùng
-     * @return hex string 64 ký tự
+     * Chỉ hỗ trợ current version. Production cần multi-version lookup.
      */
     public String hash(String credential, int pepperVersion) {
-        // TODO: Lấy pepper từ Vault/KMS theo version (hỗ trợ multi-version)
-        // Hiện tại: fallback về pepper hiện tại (production cần impl multi-version)
         if (pepperVersion == currentPepperVersion) {
             return hash(credential);
         }
@@ -97,7 +80,7 @@ public class BlindIndexService {
     }
 
     /**
-     * Verify một credential có khớp với hash đã lưu không.
+     * Verify credential khớp với hash đã lưu.
      *
      * @param credential email/SĐT thuần
      * @param storedHash hash đã lưu trong DB
@@ -111,11 +94,6 @@ public class BlindIndexService {
 
     /**
      * Verify credential với hash và pepper version cụ thể.
-     *
-     * @param credential    email/SĐT thuần
-     * @param storedHash    hash đã lưu
-     * @param pepperVersion pepper version đã dùng khi tạo hash
-     * @return true nếu khớp
      */
     public boolean verify(String credential, String storedHash, int pepperVersion) {
         return MessageDigest.isEqual(
@@ -124,11 +102,8 @@ public class BlindIndexService {
     }
 
     /**
-     * Tạo hash SHA-256 cho IP/fingerprint (không dùng HMAC).
-     * Dùng trong {@link com.magiclamp.phoenixkey_db.domain.ActivityLog} metadata.
-     *
-     * @param input chuỗi thuần (IP, device fingerprint...)
-     * @return hex string 64 ký tự
+     * SHA-256 hash cho IP/fingerprint (không HMAC).
+     * Dùng trong ActivityLog metadata.
      */
     public String sha256Hash(String input) {
         try {
@@ -139,10 +114,6 @@ public class BlindIndexService {
             throw new IllegalStateException("SHA-256 not available", e);
         }
     }
-
-    // ──────────────────────────────────────────────────────────────
-    // Private helpers
-    // ──────────────────────────────────────────────────────────────
 
     private String computeHmac(String data, String key) {
         try {
