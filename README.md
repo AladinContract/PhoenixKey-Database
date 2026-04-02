@@ -245,7 +245,7 @@ CREATE TABLE users (
 ### 5.2. auth_methods — Ánh xạ Web2 Auth → DID (Blind Index)
 
 ```sql
-CREATE TYPE auth_provider AS ENUM ('google', 'apple', 'phone');
+CREATE TYPE auth_provider AS ENUM ('GOOGLE', 'APPLE', 'PHONE');
 
 CREATE TABLE auth_methods (
   id               UUID PRIMARY KEY,
