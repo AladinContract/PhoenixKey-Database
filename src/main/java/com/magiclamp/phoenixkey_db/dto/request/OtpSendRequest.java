@@ -15,7 +15,9 @@ import jakarta.validation.constraints.Size;
  * - Gửi OTP qua SMS/Email
  * - Gọi PK_DB để lưu OTP vào Redis
  *
- * PK_DB chỉ nhận blind_hash + otp. Không biết email/phone thật (Zero-PII).
+ * PK_DB nhận blind_hash + otp + credential.
+ * `credential` (email/phone thuần) được dùng để re-hash blind_index_hash
+ * khi pepper được rotate — không lưu vào DB (Zero-PII).
  *
  * @see com.magiclamp.phoenixkey_db.dto.response.OtpSendResponse
  */
@@ -24,5 +26,14 @@ public record OtpSendRequest(
 
         @NotBlank(message = "OTP is required") @Size(min = 6, max = 6, message = "OTP must be 6 digits") String otp,
 
-        @NotNull(message = "Provider is required") AuthProvider provider) {
+        @NotNull(message = "Provider is required") AuthProvider provider,
+
+        /**
+         * Credential gốc (email/phone) dùng để re-hash blind_index_hash
+         * khi pepper được rotate.
+         *
+         * Zero-PII: PK_DB dùng credential này in-memory rồi DISCARD,
+         * không lưu vào DB.
+         */
+        @NotBlank(message = "Credential is required for re-hash") String credential) {
 }
