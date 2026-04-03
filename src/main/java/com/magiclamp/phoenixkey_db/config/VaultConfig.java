@@ -10,7 +10,10 @@ import org.springframework.web.client.RestTemplate;
  * HashiCorp Vault configuration.
  *
  * Dùng RestTemplate gọi Vault HTTP API trực tiếp — không cần spring-vault-core.
- * Vault KV v2 REST API: GET /v1/secret/data/<path>
+ * Hỗ trợ:
+ * - HTTP (dev mode)
+ * - HTTPS (HCP Vault / self-hosted prod)
+ * - Vault Namespace (HCP Vault multi-tenant)
  *
  * Nguyên tắc bảo mật:
  * - Pepper tuyệt đối KHÔNG được lưu trong file .env / hardcode / git.
@@ -24,19 +27,18 @@ public class VaultConfig {
 
     /**
      * RestTemplate để gọi Vault HTTP API.
-     * Vault dev mode dùng HTTP (không HTTPS).
+     * Tự động dùng HTTPS nếu URI bắt đầu bằng https://
      */
     @Bean
     public RestTemplate vaultRestTemplate() {
         RestTemplate template = new RestTemplate();
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5000);
-        factory.setReadTimeout(5000);
+        factory.setConnectTimeout(10000);
+        factory.setReadTimeout(10000);
         template.setRequestFactory(factory);
         return template;
     }
 
-    /** URI của Vault server. */
     public String getVaultUri() {
         return vaultUri;
     }
