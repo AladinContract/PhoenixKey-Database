@@ -81,123 +81,36 @@ Mọi dữ liệu nghiệp vụ thuộc về các App khác (OriLife, Aladin Wor
 
 ### 3.1. Đăng ký + OTP
 
-```
-┌──────┐    Nhập email/phone     ┌──────────────────┐    hash(cred)     ┌──────────┐
-│  App │ ───────────────────────▶│  NestJS Backend  │ ─────────────────▶│   PK_DB  │
-└──┬───┘                         └────────┬─────────┘                   └────┬─────┘
-   │                                      │ save OTP                         │
-   │   OTP qua SMS/Email                  │ ───────────────────────▶ Redis   │
-   │◀─────────────────────────────────────┤           otp:auth:{blind_hash}  │
-   │                                      │                                  │
-   │   Nhập mã OTP                        │ verify(blind_hash, otp)          │
-   │ ──────────────────────────────────▶ │ ────────────────────────────────▶         │
-   │                                      │ ◀── lookup OTP ─────────────────│
-   │                                      │ ◀─── { user_did } ──────────────│
-   │   Đăng nhập OK                       │                                  │
-   │◀────────────────────────────────────┤                                  │
-                       │                                  │
-```
 <img width="1758" height="1314" alt="mermaid-diagram" src="https://github.com/user-attachments/assets/480febf8-db27-4460-bbd9-238937af3c2e" />
-
 
 ### 3.2. Identity Register
 
-```
-┌──────┐  Credential + pubkey     ┌──────────────────┐                     ┌──────────┐
-│  App │ ──────────────────────▶ │  NestJS Backend  │                     │   PK_DB  │
-└──┬───┘                          └────────┬─────────┘                     └────┬─────┘
-   │                                       │                                    │
-   │                                       │ register({ cred, pubkey, sig })    │
-   │                                       │ ────────────────────────────────▶ │
-   │                                       │                                    │ INSERT users
-   │                                       │                                    │ + auth_methods
-   │                                       │                                    │ + authorized_keys
-   │                                       │ ◀── { user_id, "pending" } ───────│
-   │                                       │                                    │
-   │                                       │ Mint DID trên Cardano              │
-   │                                       │ update users.user_did = DID        │
-   │   { user_id, DID }                    │                                    │
-   │◀─────────────────────────────────────┤                                    │
-   │                                       │                                    │
-```
+<img width="2226" height="1098" alt="mermaid-diagram(1)" src="https://github.com/user-attachments/assets/f872c18b-ce05-4169-9fea-399d4eeccec0" />
 
 ### 3.3. Tra cứu pubkey
 
-```
-┌──────────────────┐                      ┌──────────┐
-│OriLife / Aladin  │                      │   PK_DB  │
-│     Work         │                      └────┬─────┘
-└───────┬──────────┘                           │
-        │                                      │
-        │ GET /identity/{did}/pubkey           │
-        │ ──────────────────────────────────▶ │
-        │                                      │
-        │ ◀── { pubkey, role }                │
-        │◀────────────────────────────────────│
-        │                                      │
-```
+<img width="1082" height="558" alt="mermaid-diagram(2)" src="https://github.com/user-attachments/assets/0ecd4758-8809-420f-8953-ccd4bab8d33d" />
+
 
 ### 3.4. Tra cứu status (TAAD)
 
-```
-┌──────────────────┐                      ┌──────────┐
-│OriLife / Aladin  │                      │   PK_DB  │
-│     Work         │                      └────┬─────┘
-└───────┬──────────┘                           │
-        │                                      │
-        │ GET /identity/{did}/status           │
-        │ ──────────────────────────────────▶ │
-        │                                      │
-        │ ◀── { status, pkh, seq }            │
-        │◀────────────────────────────────────│
-        │                                      │
-```
+<img width="1058" height="558" alt="mermaid-diagram(3)" src="https://github.com/user-attachments/assets/dc73c910-3425-44b6-9048-8c4e9604e405" />
+
 
 ### 3.5. Authorize / Revoke Key
 
-```
-┌──────┐                    ┌──────────┐
-│  App │                    │   PK_DB  │
-└──┬───┘                    └────┬─────┘
-   │                             │
-   │ POST /keys/authorize        │
-   │ ─────────────────────────▶ │
-   │                             │
-   │ POST /keys/revoke           │
-   │ ─────────────────────────▶ │
-   │                             │
-```
+<img width="962" height="774" alt="mermaid-diagram(4)" src="https://github.com/user-attachments/assets/ed4d993d-354b-49cb-9672-6f644859d14b" />
+
 
 ### 3.6. Guardian
 
-```
-┌──────┐                    ┌──────────┐
-│  App │                    │   PK_DB  │
-└──┬───┘                    └────┬─────┘
-   │                             │
-   │ POST /guardians/add         │
-   │ ─────────────────────────▶ │
-   │                             │
-   │ POST /guardians/            │
-   │ approve-recovery            │
-   │ ─────────────────────────▶ │
-   │                             │
-```
+<img width="1174" height="774" alt="mermaid-diagram(5)" src="https://github.com/user-attachments/assets/9a081849-ea6f-4d40-8c2a-3b36bf515156" />
+
 
 ### 3.7. Indexer sync
 
-```
-┌───────────────┐    ┌──────────┐          ┌──────────┐
-│ Indexer Worker│    │   PK_DB  │          │ Cardano  │
-└───────┬───────┘    └────┬─────┘          └────┬─────┘
-        │                 │                     │
-        │                 │                     │
-        │ sync-taad       │                     │
-        │ ─────────────▶ │                     │
-        │                 │                     │
-        │◀── Tx confirmed ─────────────────────│
-        │                 │                     │
-```
+<img width="1306" height="666" alt="mermaid-diagram(6)" src="https://github.com/user-attachments/assets/b61990cb-e713-4716-b145-b91d976001a8" />
+
 
 ---
 
