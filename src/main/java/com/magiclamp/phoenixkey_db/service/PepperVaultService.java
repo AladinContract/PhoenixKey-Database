@@ -40,6 +40,7 @@ public class PepperVaultService {
     private final RestTemplate restTemplate;
     private final String vaultUri;
     private final String vaultToken;
+    private final String vaultNamespace;
     private final ObjectMapper objectMapper;
     private final Map<Integer, String> pepperByVersion = new TreeMap<>();
 
@@ -52,10 +53,12 @@ public class PepperVaultService {
             RestTemplate vaultRestTemplate,
             @Value("${spring.cloud.vault.uri:http://localhost:8200}") String vaultUri,
             @Value("${spring.cloud.vault.token:}") String vaultToken,
+            @Value("${spring.cloud.vault.namespace:}") String vaultNamespace,
             ObjectMapper objectMapper) {
         this.restTemplate = vaultRestTemplate;
         this.vaultUri = vaultUri;
         this.vaultToken = vaultToken;
+        this.vaultNamespace = vaultNamespace;
         this.objectMapper = objectMapper;
         loadPeppers();
     }
@@ -76,6 +79,10 @@ public class PepperVaultService {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-Vault-Token", vaultToken);
+            // HCP Vault dùng namespace header
+            if (vaultNamespace != null && !vaultNamespace.isBlank()) {
+                headers.set("X-Vault-Namespace", vaultNamespace);
+            }
             HttpEntity<Void> entity = new HttpEntity<>(headers);
 
             // Vault KV v2
