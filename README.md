@@ -80,36 +80,25 @@ Mọi dữ liệu nghiệp vụ thuộc về các App khác (OriLife, Aladin Wor
 ## 3. Luồng API hoàn chỉnh
 
 ### 3.1. Đăng ký + OTP
-
-<img width="1758" height="1314" alt="mermaid-diagram" src="https://github.com/user-attachments/assets/480febf8-db27-4460-bbd9-238937af3c2e" />
+<img src="https://github.com/user-attachments/assets/480febf8-db27-4460-bbd9-238937af3c2e" width="600"/>
 
 ### 3.2. Identity Register
-
-<img width="2226" height="1098" alt="mermaid-diagram(1)" src="https://github.com/user-attachments/assets/f872c18b-ce05-4169-9fea-399d4eeccec0" />
+<img src="https://github.com/user-attachments/assets/f872c18b-ce05-4169-9fea-399d4eeccec0" width="600"/>
 
 ### 3.3. Tra cứu pubkey
-
-<img width="1082" height="558" alt="mermaid-diagram(2)" src="https://github.com/user-attachments/assets/0ecd4758-8809-420f-8953-ccd4bab8d33d" />
-
+<img src="https://github.com/user-attachments/assets/0ecd4758-8809-420f-8953-ccd4bab8d33d" width="600"/>
 
 ### 3.4. Tra cứu status (TAAD)
-
-<img width="1058" height="558" alt="mermaid-diagram(3)" src="https://github.com/user-attachments/assets/dc73c910-3425-44b6-9048-8c4e9604e405" />
-
+<img src="https://github.com/user-attachments/assets/dc73c910-3425-44b6-9048-8c4e9604e405" width="600"/>
 
 ### 3.5. Authorize / Revoke Key
-
-<img width="962" height="774" alt="mermaid-diagram(4)" src="https://github.com/user-attachments/assets/ed4d993d-354b-49cb-9672-6f644859d14b" />
-
+<img src="https://github.com/user-attachments/assets/ed4d993d-354b-49cb-9672-6f644859d14b" width="600"/>
 
 ### 3.6. Guardian
-
-<img width="1174" height="774" alt="mermaid-diagram(5)" src="https://github.com/user-attachments/assets/9a081849-ea6f-4d40-8c2a-3b36bf515156" />
-
+<img src="https://github.com/user-attachments/assets/9a081849-ea6f-4d40-8c2a-3b36bf515156" width="600"/>
 
 ### 3.7. Indexer sync
-
-<img width="1306" height="666" alt="mermaid-diagram(6)" src="https://github.com/user-attachments/assets/b61990cb-e713-4716-b145-b91d976001a8" />
+<img src="https://github.com/user-attachments/assets/b61990cb-e713-4716-b145-b91d976001a8" width="600"/>
 
 
 ---
