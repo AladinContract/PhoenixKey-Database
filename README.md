@@ -83,20 +83,22 @@ Mọi dữ liệu nghiệp vụ thuộc về các App khác (OriLife, Aladin Wor
 
 ```
 ┌──────┐    Nhập email/phone     ┌──────────────────┐    hash(cred)     ┌──────────┐
-│  App │ ──────────────────────▶│  NestJS Backend  │ ────────────────▶│   PK_DB  │
+│  App │ ───────────────────────▶│  NestJS Backend  │ ─────────────────▶│   PK_DB  │
 └──┬───┘                         └────────┬─────────┘                   └────┬─────┘
    │                                      │ save OTP                         │
-   │   OTP qua SMS/Email                  │ ──────────────────────▶ Redis   │
-   │◀────────────────────────────────────┤           otp:auth:{blind_hash}  │
+   │   OTP qua SMS/Email                  │ ───────────────────────▶ Redis   │
+   │◀─────────────────────────────────────┤           otp:auth:{blind_hash}  │
    │                                      │                                  │
    │   Nhập mã OTP                        │ verify(blind_hash, otp)          │
-   │ ──────────────────────────────────▶ │ ──────────────────────▶         │
+   │ ──────────────────────────────────▶ │ ────────────────────────────────▶         │
    │                                      │ ◀── lookup OTP ─────────────────│
    │                                      │ ◀─── { user_did } ──────────────│
    │   Đăng nhập OK                       │                                  │
    │◀────────────────────────────────────┤                                  │
-                                          │                                  │
+<img width="1758" height="1314" alt="mermaid-diagram" src="https://github.com/user-attachments/assets/ef0cce6f-522d-48e2-aacc-3553276413e6" />
+                       │                                  │
 ```
+
 
 ### 3.2. Identity Register
 
