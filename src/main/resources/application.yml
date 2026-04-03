@@ -44,20 +44,20 @@ spring:
     vault:
       enabled: ${VAULT_ENABLED:true}
       uri: ${VAULT_ADDR:http://localhost:8200}
-      authentication: TOKEN
       token: ${VAULT_TOKEN:phoenixkey-dev-token}
-      kv:
-        enabled: true
-        backend: secret
-        default-context: phoenixkey
+      namespace: ${VAULT_NAMESPACE:}
 
 # ──────────────────────────────────────────────────────────
 # PhoenixKey Config
 #
 # PEPPER:
-#   Dev: Giá trị mặc định trong file này (chỉ dùng local)
-#   Prod: Đọc từ HashiCorp Vault tại secret/phoenixkey/server_pepper
-#         Set VAULT_ENABLED=true và VAULT_TOKEN khi deploy lên server
+#   Pepper được đọc từ HashiCorp Vault tại secret/data/phoenixkey/pepper
+#   Vault KV v2: bao gồm current_version + tất cả pepper cũ (multi-version)
+#
+# Env:
+#   VAULT_ADDR: Vault URI (http://localhost:8200 local, https://... HCP/prod)
+#   VAULT_TOKEN: Vault token (bắt buộc)
+#   VAULT_NAMESPACE: HCP Vault namespace (không bắt buộc)
 # ──────────────────────────────────────────────────────────
 phoenixkey:
   # Pepper được đọc từ HashiCorp Vault tại secret/phoenixkey/pepper
