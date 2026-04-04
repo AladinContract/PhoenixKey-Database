@@ -112,6 +112,13 @@
             <version>2.5.0</version>
         </dependency>
 
+        <!-- Auto-load .env file vào Spring Boot -->
+        <dependency>
+            <groupId>io.github.cdimascio</groupId>
+            <artifactId>dotenv-java</artifactId>
+            <version>3.0.2</version>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
