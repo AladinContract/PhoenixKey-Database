@@ -408,40 +408,43 @@ PhoenixKey-Database/
 - Docker & Docker Compose
 - PostgreSQL 15+ (qua docker-compose)
 - Redis 7+ (qua docker-compose)
-- HashiCorp Vault (qua docker-compose, dev mode)
+- HashiCorp Vault (HCP Vault cloud)
 
 ### Khởi động
 
 ```bash
-# 1. Chạy infrastructure
+# 1. Chạy infrastructure (PostgreSQL + Redis)
 docker compose up -d
 
-# 2. (Một lần) Seed pepper vào Vault
-docker exec -it phoenixkey-vault-1 vault login phoenixkey-dev-token
-docker exec -it phoenixkey-vault-1 vault kv put secret/phoenixkey/pepper \
-  current_version=1 \
-  pepper_1="dev-pepper-for-local-testing-only-32bytes"
+# 2. Tạo HCP Vault Cluster
+#    https://portal.cloud.hashicorp.com → Create Vault → Starter tier
+#    Copy: Public Cluster URL + Generate token
 
-# 3. Chạy app
+# 3. Seed pepper vào HCP Vault
+vault kv put secret/phoenixkey/pepper \
+  current_version=1 \
+  pepper_1="$(openssl rand -hex 32)"
+
+# 4. Cập nhật .env với HCP Vault info (xem .env.example)
+
+# 5. Chạy app
 mvn spring-boot:run
 ```
 
 ### Env bắt buộc
 
 ```env
-# Development & Production: luôn dùng HashiCorp Vault
-# Vault chứa TẤT CẢ pepper (hiện tại + lịch sử)
-# Dev: Vault chạy local qua docker-compose
+# HashiCorp Vault — dùng HCP Vault (cloud)
+# Setup: docs/HashiCorpVault.md
 VAULT_ENABLED=true
-VAULT_ADDR=${VAULT_ADDR:http://localhost:8200}
-VAULT_TOKEN=${VAULT_TOKEN:phoenixkey-dev-token}
+VAULT_ADDR=https://xxxxx.cluster.hashicorp.cloud:8200
+VAULT_TOKEN=hvs.XXXXXXXXXXXXXXXXXXXX
+VAULT_NAMESPACE=admin
 
 # Database
 DB_HOST=${DB_HOST:localhost}
 DB_PASSWORD=${DB_PASSWORD:phoenixkey_dev_password}
 ```
-
-> **Lý do dev luôn dùng Vault:** Multi-version pepper yêu cầu Vault lưu cả lịch sử pepper. Không có fallback config đơn lẻ cho dev vì cần nhiều giá trị pepper cùng lúc.
 
 ### Các lệnh hữu ích
 
