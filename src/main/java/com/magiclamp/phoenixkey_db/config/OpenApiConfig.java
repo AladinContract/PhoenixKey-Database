@@ -64,10 +64,10 @@ public class OpenApiConfig {
                                 .name("Proprietary")))
                 .servers(List.of(
                         new Server()
-                                .url("http://localhost:8080")
+                                .url("http://localhost:8080/api/v1")
                                 .description("Local development"),
                         new Server()
-                                .url("https://api.phoenixkey.magiclamp.io")
+                                .url("https://api.phoenixkey.magiclamp.io/api/v1")
                                 .description("Production")))
                 .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .components(new io.swagger.v3.oas.models.Components()
