@@ -48,7 +48,7 @@ Mọi dữ liệu nghiệp vụ thuộc về các App khác (OriLife, Aladin Wor
 │  • Tạo DID trên Cardano qua Identus SDK                                          │
 │  • Xây dựng transaction qua Lucid-Evolution                                      │
 └────────┬─────────────────────────────┬──────────────────────────┬────────────────┘
-         │ OTP đã generate             │                          │ /identity/{did}/pubkey
+         │ OTP đã gửi (Twilio/SES)     │                          │ /identity/{did}/pubkey
          │ /auth/otp/save              │                          │ /identity/{did}/status
          │ /auth/otp/verify            │                          │ /keys/authorize
          ▼                             ▼                          │ /keys/revoke
@@ -260,7 +260,7 @@ CREATE TABLE activity_logs (
 | `ratelimit:ip:{ip_hash}`         | PK_DB                 | Số request/IP              | 3600s (1 giờ) | Chống spam: khóa 1h nếu vượt ngưỡng |
 | `session:token:{jwt_hash}`       | PK_DB                 | `{user_did\|pubkey}`       | 86400s (24h)  | Phiên đăng nhập Web2                |
 
-**Lưu ý:** OTP được **NestJS generate** và gửi qua SMS/Email. PK_DB nhận `blind_hash + otp + credential` từ NestJS rồi lưu vào Redis. `credential` (email/phone thuần) được dùng để re-hash blind_index_hash khi pepper được rotate — không lưu vào DB.
+**Lưu ý:** OTP được NestJS gửi qua SMS/Email (Twilio/SendGrid). PK_DB nhận `blind_hash + otp + credential` từ NestJS rồi lưu vào Redis. `credential` (email/phone thuần) được dùng để re-hash blind_index_hash khi pepper được rotate — không lưu vào DB.
 
 > **Zero-PII:** PK_DB chỉ lưu `blind_hash`, không lưu credential thật. Re-hash xảy ra in-memory trong quá trình verify OTP.
 
@@ -337,7 +337,7 @@ Nếu team OriLife hoặc AladinWork yêu cầu → gửi RFC lên Tech Steering
 
 ### ❌ PhoenixKey Database TUYỆT ĐỐI KHÔNG CHẠM
 
-- **Generate OTP** (NestJS làm qua Twilio/SendGrid)
+- **Gửi OTP qua SMS/Email** (NestJS làm qua Twilio/SendGrid)
 - **Gửi SMS/Email** (NestJS làm)
 - **Tạo DID trên Cardano** (NestJS làm qua Identus SDK)
 - **Gửi transaction Cardano** (NestJS làm qua Lucid-Evolution)
