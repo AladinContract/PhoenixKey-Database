@@ -12,7 +12,7 @@
 3. [Luồng API hoàn chỉnh](#3-luồng-api-hoàn-chỉnh)
 4. [Nguyên tắc thiết kế](#4-nguyên-tắc-thiết-kế)
 5. [Lược đồ CSDL](#5-lược-đồ-csdl)
-5b. [DB Diagram](#5b-db-diagram)
+   - [Diagram](#5-diagram)
 6. [Kiến trúc Cache (Redis)](#6-kiến-trúc-cache-redis)
 7. [Quy tắc vận hành](#7-quy-tắc-vận-hành)
 8. [Phạm vi & Ranh giới](#8-phạm-vi--ranh-giới)
@@ -250,7 +250,7 @@ CREATE TABLE activity_logs (
 
 ---
 
-## 5b. DB Diagram
+### 5. Diagram
 
 Sơ đồ quan hệ các bảng, generate từ [dbdiagram.io](https://dbdiagram.io):
 
