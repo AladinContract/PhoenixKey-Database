@@ -12,6 +12,7 @@
 3. [Luồng API hoàn chỉnh](#3-luồng-api-hoàn-chỉnh)
 4. [Nguyên tắc thiết kế](#4-nguyên-tắc-thiết-kế)
 5. [Lược đồ CSDL](#5-lược-đồ-csdl)
+5b. [DB Diagram](#5b-db-diagram)
 6. [Kiến trúc Cache (Redis)](#6-kiến-trúc-cache-redis)
 7. [Quy tắc vận hành](#7-quy-tắc-vận-hành)
 8. [Phạm vi & Ranh giới](#8-phạm-vi--ranh-giới)
@@ -246,6 +247,122 @@ CREATE TABLE activity_logs (
 ```
 
 > Trigger: `BEFORE UPDATE OR DELETE` → raise exception. Không ai được sửa hay xóa log.
+
+---
+
+## 5b. DB Diagram
+
+Sơ đồ quan hệ các bảng, generate từ [dbdiagram.io](https://dbdiagram.io):
+
+```dbml
+// ============================================================
+// PhoenixKey Database — dbdiagram
+// Tables: users, auth_methods, authorized_keys, guardians,
+//         onchain_taad_state_cache, activity_logs
+// ============================================================
+
+Project PhoenixKey {
+  database_type: 'PostgreSQL'
+  Note: 'Identity Routing & Cache Hub — Zero-PII, SSoT: Cardano Blockchain'
+}
+
+// -----------------------------------------------
+// V1: users — Lõi Định danh
+// Chỉ lưu DID + timestamp, KHÔNG lưu PII
+// -----------------------------------------------
+Table users {
+  id           UUID [pk, note: 'UUIDv7 do Backend tạo']
+  user_did     VARCHAR(128) [unique, not null]
+  created_at   TIMESTAMPTZ [default: CURRENT_TIMESTAMP]
+}
+
+// -----------------------------------------------
+// V2: authorized_keys — Quản lý đa thiết bị & LampNet
+// -----------------------------------------------
+Table authorized_keys {
+  id                 UUID [pk]
+  user_did           VARCHAR(128) [not null, ref: > users.user_did]
+  public_key_hex     VARCHAR(128) [not null]
+  key_role           VARCHAR(50) [not null, default: 'owner']
+  lampnet_locator_id VARCHAR(128)
+  added_by_signature VARCHAR(256) [not null]
+  status             VARCHAR(20) [not null, default: 'active']
+  created_at         TIMESTAMPTZ [default: CURRENT_TIMESTAMP]
+
+ Indexes {
+    (user_did, public_key_hex) [unique]
+  }
+}
+
+// -----------------------------------------------
+// V3: guardians — Mạng lưới bảo hộ khôi phục
+// -----------------------------------------------
+Table auth_methods {
+  id               UUID [pk]
+  user_id          UUID [not null, ref: > users.id]
+  provider         auth_provider [not null]
+  blind_index_hash VARCHAR(64) [unique, not null]
+  pepper_version   INTEGER [not null, default: 1]
+  is_verified      BOOLEAN [not null, default: FALSE]
+  added_at         TIMESTAMPTZ [default: CURRENT_TIMESTAMP]
+}
+
+Table guardians {
+  id              UUID [pk]
+  user_id         UUID [not null, ref: > users.id]
+  guardian_did    VARCHAR(128) [not null]
+  proof_signature VARCHAR(256) [not null]
+  status          VARCHAR(20) [not null, default: 'active']
+  created_at      TIMESTAMPTZ [default: CURRENT_TIMESTAMP]
+
+  Indexes {
+    (user_id, guardian_did) [unique]
+  }
+}
+
+// -----------------------------------------------
+// V4: onchain_taad_state_cache — Bộ đệm trạng thái on-chain
+// -----------------------------------------------
+Table onchain_taad_state_cache {
+  user_did               VARCHAR(128) [pk, ref: > users.user_did]
+  current_controller_pkh VARCHAR(64) [not null]
+  sequence               BIGINT [not null]
+  status                 taad_status [not null]
+  recovery_deadline      TIMESTAMPTZ
+  last_synced_block      BIGINT [not null]
+  block_hash             VARCHAR(64) [not null]
+  updated_at             TIMESTAMPTZ [default: CURRENT_TIMESTAMP]
+}
+
+// -----------------------------------------------
+// V5: activity_logs — Nhật ký kiểm toán bất biến
+// -----------------------------------------------
+Table activity_logs {
+  id          UUID [pk]
+  user_id     UUID [ref: > users.id]
+  action      VARCHAR(50) [not null]
+  metadata    JSONB
+  created_at  TIMESTAMPTZ [default: CURRENT_TIMESTAMP]
+}
+
+// Enums
+Enum auth_provider { GOOGLE APPLE PHONE }
+Enum taad_status   { ACTIVE RECOVERING MIGRATED }
+
+// ============================================================
+// RELATIONSHIPS
+// ============================================================
+Ref: auth_methods.user_id             > users.id         [delete: cascade]
+Ref: authorized_keys.user_did         > users.user_did   [delete: cascade]
+Ref: guardians.user_id                 > users.id         [delete: cascade]
+Ref: onchain_taad_state_cache.user_did > users.user_did
+Ref: activity_logs.user_id             > users.id
+```
+
+**Cách dùng:**
+1. Copy đoạn DBML trên
+2. Paste vào [dbdiagram.io/draw](https://dbdiagram.io)
+3. Bấm **Ctrl+S** hoặc **Export** để xuất PNG/SVG/PDF
 
 ---
 
