@@ -69,8 +69,7 @@ services:
 
   # ──────────────────────────────────────────────────────────
   # Spring Boot App — PhoenixKey Database Service
-  # Port 8080: API (context-path /api/v1)
-  # Port 8081: Actuator health check
+  # Port 8080: API (context-path /api/v1) + Actuator (/api/v1/actuator/*)
   # ──────────────────────────────────────────────────────────
   app:
     build:
@@ -80,7 +79,6 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
-      - "8081:8081"
     env_file:
       - path: .env
         required: false   # Không fail nếu chưa tạo .env (dùng default trong application.yml)
@@ -96,7 +94,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health | grep -q UP || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/v1/actuator/health | grep -q UP || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
