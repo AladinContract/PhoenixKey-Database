@@ -328,7 +328,8 @@ CREATE TABLE pending_invitations (
 
 ### Diagram
 
-<img width="1616" height="1386" alt="Screenshot From 2026-04-10 09-46-29" src="https://github.com/user-attachments/assets/439474c4-7654-47c4-8a43-a14ce54e407d" />
+<img width="1181" height="1099" alt="Untitled" src="https://github.com/user-attachments/assets/0ea1ea91-6ca7-4bf7-af32-eb41d07536f0" />
+
 
 ---
 
