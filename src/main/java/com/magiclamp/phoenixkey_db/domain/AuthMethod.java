@@ -2,6 +2,8 @@ package com.magiclamp.phoenixkey_db.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -51,6 +53,7 @@ public class AuthMethod {
      * Ánh xạ sang PostgreSQL ENUM 'auth_provider'.
      */
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "provider", nullable = false, columnDefinition = "auth_provider")
     private AuthProvider provider;
 

@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.magiclamp.phoenixkey_db.common.DataResponse;
 
@@ -94,6 +95,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(response);
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // 404 — không tìm thấy endpoint (không wrap thành 9999)
+    // ──────────────────────────────────────────────────────────────
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<DataResponse<Void>> handleNoResource(NoResourceFoundException ex) {
+        DataResponse<Void> response = DataResponse.<Void>builder()
+                .code(404)
+                .message("Endpoint not found: " + ex.getResourcePath())
+                .build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
     // ──────────────────────────────────────────────────────────────

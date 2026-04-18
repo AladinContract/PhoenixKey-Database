@@ -46,7 +46,7 @@ public class KeyController {
      *
      * **Cho phép re-authorize:** Key đã revoke trước đó có thể authorize lại.
      *
-     * @param request userDid + publicKeyHex + keyRole + addedBySignature
+     * @param request userDid + publicKeyHex + keyOrigin + keyRole + nonce + addedBySignature
      * @return KeyAuthorizeResponse { keyId }
      */
     @Operation(summary = "Authorize public key mới cho user", description = """
@@ -57,14 +57,23 @@ public class KeyController {
             - NestJS có root public key để verify chữ ký
             - PK_DB chỉ nhận và lưu — không verify được
 
+            **[V1.5] Chống Replay Attack:**
+            - `nonce` bắt buộc — mỗi request phải có nonce mới, dùng 1 lần duy nhất
+            - Trùng nonce → throw NONCE_ALREADY_USED (409)
+
+            **[V1.5] Key Origin:**
+            - `secure_enclave`: key sinh trong Secure Enclave/TEE — có mảnh LampNet
+            - `imported_bip39`: seed nhập từ ngoài (Yoroi, Eternl...) — KHÔNG có mảnh LampNet
+            - `derived_child`: key derive từ seed gốc
+
             **Re-authorize:**
             - Key đã revoke trước đó có thể authorize lại
             - Key đang active của user hiện tại không thể authorize lại
 
             **Key Roles:**
             - `owner`: thiết bị gốc, toàn quyền
-            - `farm_manager`: ký giao dịch liên quan đến farm
-            - `read_only`: chỉ đọc, không ký
+            - `manager`: ký giao dịch, quản lý thiết bị phụ
+            - `viewer`: chỉ đọc, không ký
             """)
 
     @ApiResponse(responseCode = "201", description = "Key đã authorized thành công", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
@@ -90,7 +99,7 @@ public class KeyController {
      * **Soft revoke:** Key không bị xóa khỏi DB, chỉ đổi status = "revoked".
      * Key đã revoke có thể được authorize lại sau.
      *
-     * @param request userDid + publicKeyHex
+     * @param request userDid + publicKeyHex + nonce + signature
      * @return 200 OK
      */
     @Operation(summary = "Revoke public key của user", description = """
@@ -100,6 +109,10 @@ public class KeyController {
             - Key không bị xóa khỏi DB — chỉ đổi status = "revoked"
             - Key đã revoke có thể được authorize lại sau (re-enrollment)
             - Thiết bị cũ không thể ký giao dịch sau khi revoke
+
+            **[V1.5] Chống Replay Attack:**
+            - `nonce` bắt buộc — mỗi request phải có nonce mới, dùng 1 lần duy nhất
+            - Trùng nonce → throw NONCE_ALREADY_USED (409)
 
             **Security:** Sau khi revoke, thiết bị bị revoke không thể:
             - Ký giao dịch trên Cardano

@@ -86,14 +86,14 @@ public class AuthController {
      * - App nhận OTP qua SMS/Email
      * - App gửi blindHash + otp + ipHash → PK_DB
      * - PK_DB lookup Redis → so sánh OTP
-     * - Đúng → re-hash blind_index_hash nếu pepper đã rotate → trả userDid
+     * - Đúng → re-hash blind_index_hash nếu pepper đã rotate → trả userDid + userId + credential
      *
      * **Trả về:**
      * - `userDid != null`: user đã đăng ký → đăng nhập thành công
      * - `userDid == null`: user mới → chưa đăng ký (App sẽ gọi /identity/register)
      *
      * @param request blindHash + otp + ipHash
-     * @return OtpVerifyResponse { userDid, blindHash }
+     * @return OtpVerifyResponse { userDid, userId, blindHash, credential }
      */
     @Operation(summary = "Verify OTP", description = """
             App gọi sau khi nhận OTP qua SMS/Email.
@@ -103,9 +103,11 @@ public class AuthController {
             - So sánh OTP → đúng: xóa OTP, tìm user, re-hash nếu pepper đã rotate
             - Sai: throw OTP_INVALID
 
-            **Trả về:**
+            **[V1.5] Trả về:**
             - `userDid != null`: user đã đăng ký → đăng nhập thành công
             - `userDid == null`: user mới → chưa đăng ký
+            - `userId`: UUID dùng cho các operation tiếp theo (key authorize, invitation)
+            - `credential`: email/phone gốc — NestJS dùng để gọi /identity/register
 
             **Re-hash:** Nếu pepper_version trong DB < current pepper_version,
             PK_DB tự động re-hash blind_index_hash với pepper mới.

@@ -5,13 +5,23 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- -----------------------------------------------
+-- ENUM: auth_provider
+-- [V1.5] Chỉ phone + email. Không GOOGLE/APPLE.
+-- Primary Auth = Biometric + Hardware Key tại chip thiết bị.
+-- Secondary Auth dùng phone/email làm Discovery Bridge.
+-- -----------------------------------------------
+CREATE TYPE auth_provider AS ENUM ('PHONE', 'EMAIL');
+
+-- -----------------------------------------------
 -- Bảng gốc: users
 -- Chỉ lưu DID và timestamp. KHÔNG lưu PII.
+-- [V1.5] Thêm version BIGINT cho Optimistic Locking đa thiết bị.
 -- -----------------------------------------------
 CREATE TABLE
     users (
         id UUID PRIMARY KEY, -- UUIDv7 do Backend tạo (không dùng gen_random_uuid())
         user_did VARCHAR(128) UNIQUE NOT NULL, -- did:prism:abc123...
+        version BIGINT DEFAULT 0 NOT NULL, -- [V1.5] Optimistic Locking đa thiết bị
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -21,8 +31,6 @@ CREATE INDEX idx_users_did ON users (user_did);
 -- Bảng ánh xạ Web2 → DID
 -- Blind Index: không lưu phone/email plaintext
 -- -----------------------------------------------
-CREATE TYPE auth_provider AS ENUM ('GOOGLE', 'APPLE', 'PHONE');
-
 CREATE TABLE
     auth_methods (
         id UUID PRIMARY KEY,

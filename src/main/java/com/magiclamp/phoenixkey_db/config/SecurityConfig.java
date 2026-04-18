@@ -38,19 +38,15 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
 
                 // Cấu hình quyền truy cập
+                //
+                // PhoenixKey Database là internal backend service — không public-facing.
+                // JWT verification được thực hiện ở API Gateway (NestJS) trước khi request
+                // đến đây. DB layer trust all requests đến từ internal network.
+                //
+                // Network-level protection: VPC/private subnet hoặc Kubernetes NetworkPolicy.
+                // context-path = /api/v1 → Spring Security thấy path không có prefix /api/v1.
                 .authorizeHttpRequests(auth -> auth
-                        // Actuator health — ai cũng đọc được (load balancer health check)
-                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-                        // Actuator info — chỉ internal
-                        .requestMatchers("/actuator/info").permitAll()
-                        // Swagger UI + OpenAPI spec — ai cũng đọc được
-                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
-                        // Mọi endpoint API — yêu cầu authenticated
-                        // (JWT verify được thực hiện ở API Gateway, không ở DB layer)
-                        .requestMatchers("/api/v1/**").authenticated()
-                        // Mọi thứ khác — deny
-                        .anyRequest().denyAll());
+                        .anyRequest().permitAll());
 
         return http.build();
     }

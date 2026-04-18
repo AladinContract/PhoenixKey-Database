@@ -12,17 +12,21 @@ import java.util.UUID;
 /**
  * Nhật ký kiểm toán bất biến (Immutable Audit Trail).
  *
- * Append-Only — không ai được UPDATE hoặc DELETE.
- * Trigger {@code enforce_append_only} ở tầng Database enforce điều này.
- * Kể cả DBA cũng không được sửa hay xóa log.
+ * [V1.5] Refactor toàn bộ:
+ * - Partitioned table (PARTITION BY RANGE created_at)
+ * - Composite PK (id, created_at) — required cho partitioned table
+ * - FK ON DELETE SET NULL (GDPR) — thay vì CASCADE
+ * - Trigger thông minh smart_audit_trigger
+ *
+ * Append-Only với 3 nguyên tắc:
+ * - [1] UPDATE: bị chặn (tính toàn vẹn pháp lý)
+ * - [2] DELETE khi user_id IS NOT NULL: bị chặn (bảo vệ audit trail active)
+ * - [3] DELETE khi user_id IS NULL: được phép (GDPR erasure hợp lệ)
  *
  * Các action thường gặy:
- * - Auth: {@code login_success}, {@code login_failed}, {@code otp_sent},
- * {@code otp_failed}
- * - Key: {@code key_authorized}, {@code key_revoked},
- * {@code key_rotated}
- * - Recovery: {@code recovery_initiated}, {@code recovery_cancelled},
- * {@code recovery_finalized}
+ * - Auth: {@code login_success}, {@code login_failed}, {@code otp_sent}, {@code otp_failed}
+ * - Key: {@code key_authorized}, {@code key_revoked}, {@code key_rotated}
+ * - Recovery: {@code recovery_initiated}, {@code recovery_cancelled}, {@code recovery_finalized}
  * - Guardian: {@code guardian_added}, {@code guardian_removed}
  * - Sync: {@code taad_synced}
  *
@@ -30,29 +34,29 @@ import java.util.UUID;
  * Cột {@code metadata} tuyệt đối KHÔNG được chứa PII
  * (số điện thoại, email, tên, địa chỉ IP thật).
  * Chỉ lưu: IP hash, OS version, device fingerprint hash.
- * 
  */
 @Entity
-@Table(name = "activity_logs", indexes = {
-        @Index(name = "idx_activity_logs_user", columnList = "user_id, created_at DESC"),
-        @Index(name = "idx_activity_logs_action", columnList = "action, created_at DESC"),
-        @Index(name = "idx_activity_logs_created", columnList = "created_at DESC")
-})
+@Table(name = "activity_logs")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@IdClass(ActivityLogId.class)
 public class ActivityLog {
 
     @Id
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
+    @Id
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private OffsetDateTime createdAt;
+
     /**
      * User thực hiện hành động.
-     * Nullable — có thể là log trước khi user tồn tại (VD: failed login attempt).
-     * Dùng userId cho logging (không cần load entity), dùng user cho JPA relation.
+     * [V1.5] Nullable — có thể là log trước khi user tồn tại (VD: failed login attempt).
+     * [V1.5] FK ON DELETE SET NULL (GDPR) — khi user xóa tài khoản, log vẫn tồn tại.
      */
     @Column(name = "user_id")
     private UUID userId;
@@ -74,12 +78,11 @@ public class ActivityLog {
      * TUYỆT ĐỐI KHÔNG CHỨA PII.
      *
      * Ví dụ metadata hợp lệ:
-     *
      * {
      *   "ip_hash": "sha256:abc123...",
      *   "os": "Android 14",
      *   "device_id_hash": "sha256:def456...",
-     *   "provider": "google",
+     *   "provider": "email",
      *   "fail_reason": "invalid_otp"
      * }
      */
@@ -87,15 +90,11 @@ public class ActivityLog {
     @Column(name = "metadata", columnDefinition = "jsonb")
     private Map<String, Object> metadata;
 
-    /**
-     * Thời điểm sự kiện xảy ra.
-     * UUIDv7 đảm bảo sort theo thời gian tự nhiên.
-     */
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private OffsetDateTime createdAt;
-
     @PrePersist
     protected void onCreate() {
+        if (id == null) {
+            id = UUID.randomUUID();
+        }
         if (createdAt == null) {
             createdAt = OffsetDateTime.now();
         }

@@ -15,10 +15,9 @@ import java.util.UUID;
  * Mọi ánh xạ DID ↔ Web2 credentials nằm trong {@link AuthMethod}.
  *
  * Nguyên tắc:
- * - id = UUIDv7 do Backend tạo (timestamp-prefixed, tốt cho B-Tree
- * insert)
- * - user_did = DID string bất biến suốt vòng đời user (không đổi kể cả khi
- * key rotation)
+ * - id = UUIDv7 do Backend tạo (timestamp-prefixed, tốt cho B-Tree insert)
+ * - user_did = DID string bất biến suốt vòng đời user (không đổi kể cả khi key
+ * rotation)
  * - Tài sản (Job, Jem, NFT) gắn với user_did, không gắn với key
  *
  * @see AuthMethod
@@ -50,6 +49,16 @@ public class User {
     @Column(name = "user_did", length = 128, nullable = false, unique = true, updatable = false)
     private String userDid;
 
+    /**
+     * [V1.5] Optimistic Locking cho đa thiết bị.
+     * JPA tự động tăng version mỗi khi entity được merged.
+     * Chống xung đột ghi đồng thời trên đa thiết bị.
+     *
+     */
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
@@ -77,6 +86,9 @@ public class User {
     protected void onCreate() {
         if (createdAt == null) {
             createdAt = OffsetDateTime.now();
+        }
+        if (version == null) {
+            version = 0L;
         }
     }
 }

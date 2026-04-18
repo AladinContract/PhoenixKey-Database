@@ -29,7 +29,7 @@ public interface AuthorizedKeyRepository extends JpaRepository<AuthorizedKey, UU
      * @param userDid DID string
      * @return danh sách khóa active
      */
-    @Query("SELECT k FROM AuthorizedKey k WHERE k.user.userDid = :userDid AND k.status = 'active'")
+    @Query("SELECT k FROM AuthorizedKey k WHERE k.userDid = :userDid AND k.status = 'active'")
     List<AuthorizedKey> findActiveByUserDid(@Param("userDid") String userDid);
 
     /**
@@ -38,7 +38,7 @@ public interface AuthorizedKeyRepository extends JpaRepository<AuthorizedKey, UU
      * @param userDid DID string
      * @return danh sách tất cả khóa
      */
-    List<AuthorizedKey> findByUserUserDid(String userDid);
+    List<AuthorizedKey> findByUserDid(String userDid);
 
     /**
      * Kiểm tra public key đã được authorized cho user này chưa.
@@ -47,7 +47,7 @@ public interface AuthorizedKeyRepository extends JpaRepository<AuthorizedKey, UU
      * @param publicKeyHex public key hex
      * @return true nếu đã authorized
      */
-    boolean existsByUserUserDidAndPublicKeyHexAndStatus(
+    boolean existsByUserDidAndPublicKeyHexAndStatus(
             String userDid, String publicKeyHex, String status);
 
     // ──────────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ public interface AuthorizedKeyRepository extends JpaRepository<AuthorizedKey, UU
      */
     @Modifying
     @Query("UPDATE AuthorizedKey k SET k.status = 'revoked' " +
-            "WHERE k.user.userDid = :userDid AND k.status = 'active'")
+            "WHERE k.userDid = :userDid AND k.status = 'active'")
     int revokeAllByUserDid(@Param("userDid") String userDid);
 
     /**
@@ -101,7 +101,7 @@ public interface AuthorizedKeyRepository extends JpaRepository<AuthorizedKey, UU
      * @return số khóa active
      */
     @Query("SELECT COUNT(k) FROM AuthorizedKey k " +
-            "WHERE k.user.userDid = :userDid AND k.status = 'active'")
+            "WHERE k.userDid = :userDid AND k.status = 'active'")
     long countActiveByUserDid(@Param("userDid") String userDid);
 
     /**
@@ -111,6 +111,6 @@ public interface AuthorizedKeyRepository extends JpaRepository<AuthorizedKey, UU
      * @return Optional chứa owner key
      */
     @Query("SELECT k FROM AuthorizedKey k " +
-            "WHERE k.user.userDid = :userDid AND k.keyRole = 'owner' AND k.status = 'active'")
+            "WHERE k.userDid = :userDid AND k.keyRole = 'owner' AND k.status = 'active'")
     Optional<AuthorizedKey> findOwnerByUserDid(@Param("userDid") String userDid);
 }

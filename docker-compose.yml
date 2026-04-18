@@ -3,20 +3,23 @@ version: "3.9"
 # ============================================================
 # PhoenixKey Database — Local Development Stack
 #
-# Chạy: docker compose up -d
-# Dừng: docker compose down
-# Reset data: docker compose down -v
+# Chạy full stack:  docker compose up -d
+# Chỉ infra:        docker compose up -d postgres redis
+# Build lại app:    docker compose build app
+# Xem logs:         docker compose logs -f app
+# Reset toàn bộ:    docker compose down -v
 #
 # Vault: Dùng HCP Vault (cloud) — xem .env.example
 # ============================================================
 
 services:
+
   # ──────────────────────────────────────────────────────────
   # PostgreSQL 16 — ACID Database cho PhoenixKey
   # ──────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
-    container_name: phoenixkey-postgres
+    container_name: phoenixkey-db-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: phoenixkey
@@ -27,31 +30,77 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U phoenixkey -d phoenixkey" ]
+      test: ["CMD-SHELL", "pg_isready -U phoenixkey -d phoenixkey"]
       interval: 10s
       timeout: 5s
       retries: 5
     command: >
-      postgres -c max_connections=100 -c shared_buffers=256MB -c effective_cache_size=512MB -c maintenance_work_mem=64MB -c work_mem=16MB -c log_min_duration_statement=200ms -c log_connections=on -c log_disconnections=on
+      postgres
+        -c max_connections=100
+        -c shared_buffers=256MB
+        -c effective_cache_size=512MB
+        -c maintenance_work_mem=64MB
+        -c work_mem=16MB
+        -c log_min_duration_statement=200ms
 
   # ──────────────────────────────────────────────────────────
   # Redis 7 — Cache cho OTP, Session, Rate Limit
   # ──────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: phoenixkey-redis
+    container_name: phoenixkey-db-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     command: >
-      redis-server --save 900 1 --save 300 10 --save 60 10000 --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly no
+      redis-server
+        --save 900 1
+        --save 300 10
+        --maxmemory 256mb
+        --maxmemory-policy allkeys-lru
+        --appendonly no
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
+
+  # ──────────────────────────────────────────────────────────
+  # Spring Boot App — PhoenixKey Database Service
+  # Port 8080: API (context-path /api/v1)
+  # Port 8081: Actuator health check
+  # ──────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: phoenixkey-db-spring-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    env_file:
+      - path: .env
+        required: false   # Không fail nếu chưa tạo .env (dùng default trong application.yml)
+    environment:
+      # Override 2 biến cần giá trị khác trong Docker (service name thay vì localhost)
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      # VAULT_ADDR: nếu Vault chạy trên host machine (dev local)
+      VAULT_ADDR: ${VAULT_ADDR:-http://host.docker.internal:8200}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health | grep -q UP || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
 # ──────────────────────────────────────────────────────────
 # Persistent Volumes
@@ -67,5 +116,5 @@ volumes:
 # ──────────────────────────────────────────────────────────
 networks:
   default:
-    name: phoenixkey-network
+    name: phoenixkey-db-network
     driver: bridge

@@ -9,13 +9,13 @@
 
 # Auth
 
-POST /api/v1/auth/otp/save   ← NestJS gọi sau khi generate OTP
+POST /api/v1/auth/otp/save ← NestJS gọi sau khi generate OTP
 POST /api/v1/auth/otp/verify
 
 # Identity (internal — chỉ Phoenix SDK gọi)
 
 POST /api/v1/identity/register
-PUT /api/v1/identity/did       ← NestJS gọi sau khi mint DID trên Cardano
+PUT /api/v1/identity/did ← NestJS gọi sau khi mint DID trên Cardano
 GET /api/v1/identity/{did}/pubkey ← OriLife, Aladin gọi vào đây
 GET /api/v1/identity/{did}/status
 

@@ -51,7 +51,7 @@ public class GuardianController {
      * Recovery approval (guardian ký lên Cardano Smart Contract) được xử lý
      * trực tiếp trên Blockchain — không thông qua PK_DB.
      *
-     * @param request userDid + guardianDid + proofSignature
+     * @param request userDid + guardianDid + proofSignature + nonce
      * @return GuardianAddResponse { guardianCount }
      */
     @Operation(summary = "Thêm guardian cho user", description = """
@@ -60,6 +60,10 @@ public class GuardianController {
             **ZERO-TRUST:**
             - `proofSignature` phải được verify bởi NestJS trước khi gọi
             - Signature chứng minh user thực sự mời người này làm guardian
+
+            **[V1.5] Chống Replay Attack:**
+            - `nonce` bắt buộc — mỗi request phải có nonce mới, dùng 1 lần duy nhất
+            - Trùng nonce → throw NONCE_ALREADY_USED (409)
 
             **Recovery flow (on-chain, không qua PK_DB):**
             1. User mất thiết bị → cài app mới

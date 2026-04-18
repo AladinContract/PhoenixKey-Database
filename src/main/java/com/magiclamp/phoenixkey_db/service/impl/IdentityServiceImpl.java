@@ -25,6 +25,7 @@ import com.magiclamp.phoenixkey_db.repository.OnchainTaadStateCacheRepository;
 import com.magiclamp.phoenixkey_db.repository.UserRepository;
 import com.magiclamp.phoenixkey_db.service.ActivityLogService;
 import com.magiclamp.phoenixkey_db.service.IdentityService;
+import com.magiclamp.phoenixkey_db.service.InvitationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +42,7 @@ public class IdentityServiceImpl implements IdentityService {
     private final BlindIndexService blindIndexService;
     private final ActivityLogService activityLogService;
     private final UuidGenerator uuidGenerator;
+    private final InvitationService invitationService;
 
     // ──────────────────────────────────────────────────────────────
     // Register
@@ -61,12 +63,14 @@ public class IdentityServiceImpl implements IdentityService {
         UUID userId = uuidGenerator.create();
 
         // Tạo User (user_did sẽ được NestJS mint trên Cardano rồi update lại)
+        // Không set version — để @PrePersist xử lý → Spring Data JPA gọi persist()
+        // thay vì merge(), giữ entity managed trong persistence context.
         User user = User.builder()
                 .id(userId)
                 .userDid("pending") // NestJS sẽ update sau khi mint DID
                 .createdAt(OffsetDateTime.now())
                 .build();
-        userRepository.save(user);
+        user = userRepository.save(user);
 
         // Tạo AuthMethod
         AuthMethod authMethod = AuthMethod.builder()
@@ -83,14 +87,19 @@ public class IdentityServiceImpl implements IdentityService {
         // Tạo AuthorizedKey (owner key)
         AuthorizedKey ownerKey = AuthorizedKey.builder()
                 .id(uuidGenerator.create())
-                .user(user)
+                .userDid(user.getUserDid())
                 .publicKeyHex(request.publicKeyHex())
+                .keyOrigin(request.keyOrigin())
                 .keyRole(request.keyRole())
                 .addedBySignature(request.addedBySignature())
                 .status("active")
                 .createdAt(OffsetDateTime.now())
                 .build();
         authorizedKeyRepository.save(ownerKey);
+
+        // [V1.5] Auto-resolve pending invitations
+        // Khi user đăng ký bằng SĐT/Email đã được mời → auto-add guardian
+        invitationService.resolveOnRegistration(blindHash, userId);
 
         log.info("User registered: id={}, blind_hash={}, pubkey={}",
                 userId, blindHash, request.publicKeyHex());

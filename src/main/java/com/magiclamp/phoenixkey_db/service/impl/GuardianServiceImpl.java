@@ -1,5 +1,6 @@
 package com.magiclamp.phoenixkey_db.service.impl;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Map;
 
@@ -19,6 +20,7 @@ import com.magiclamp.phoenixkey_db.repository.GuardianRepository;
 import com.magiclamp.phoenixkey_db.repository.UserRepository;
 import com.magiclamp.phoenixkey_db.service.ActivityLogService;
 import com.magiclamp.phoenixkey_db.service.GuardianService;
+import com.magiclamp.phoenixkey_db.service.NonceService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +34,7 @@ public class GuardianServiceImpl implements GuardianService {
     private final UserRepository userRepository;
     private final ActivityLogService activityLogService;
     private final UuidGenerator uuidGenerator;
+    private final NonceService nonceService;
 
     // ──────────────────────────────────────────────────────────────
     // Add Guardian
@@ -40,6 +43,9 @@ public class GuardianServiceImpl implements GuardianService {
     @Override
     @Transactional
     public GuardianAddResponse addGuardian(GuardianAddRequest request) {
+        // [V1.5] Validate + consume nonce — chống replay attack
+        nonceService.validateAndConsume(request.nonce(), request.userDid(), Duration.ofMinutes(5));
+
         // Verify user tồn tại
         User user = userRepository.findByUserDid(request.userDid())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_DID_NOT_FOUND));
@@ -81,6 +87,9 @@ public class GuardianServiceImpl implements GuardianService {
     @Override
     @Transactional
     public GuardianRemoveResponse removeGuardian(GuardianRemoveRequest request) {
+        // [V1.5] Validate + consume nonce — chống replay attack
+        nonceService.validateAndConsume(request.nonce(), request.userDid(), Duration.ofMinutes(5));
+
         // Verify user tồn tại
         User user = userRepository.findByUserDid(request.userDid())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_DID_NOT_FOUND));

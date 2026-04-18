@@ -76,6 +76,9 @@ public enum ErrorCode {
     /** Khóa đang ở trạng thái không hợp lệ. */
     KEY_STATUS_INVALID(3005, "Invalid key status", HttpStatus.BAD_REQUEST),
 
+    /** [V1.5] Nonce đã được sử dụng — replay attack detected. */
+    NONCE_ALREADY_USED(3006, "Nonce already used", HttpStatus.CONFLICT),
+
     // ──────────────────────────────────────────────────────────────
     // 4xxx — Guardian / Social Recovery
     // ──────────────────────────────────────────────────────────────

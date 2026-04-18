@@ -1,6 +1,6 @@
 # PhoenixKey Database
 
-**Version:** v1.0 | **Tech Stack:** Spring Boot 3.3 + PostgreSQL + Redis + Flyway + HashiCorp Vault
+**Version:** v1.5 | **Tech Stack:** Spring Boot 3.3 + PostgreSQL + Redis + Flyway + HashiCorp Vault
 **Source of Truth:** Blockchain Cardano (qua TAAD)
 
 ---
@@ -81,26 +81,32 @@ Mọi dữ liệu nghiệp vụ thuộc về các App khác (OriLife, Aladin Wor
 ## 3. Luồng API hoàn chỉnh
 
 ### 3.1. Đăng ký + OTP
+
 <img src="https://github.com/user-attachments/assets/480febf8-db27-4460-bbd9-238937af3c2e" width="600"/>
 
 ### 3.2. Identity Register
+
 <img src="https://github.com/user-attachments/assets/f872c18b-ce05-4169-9fea-399d4eeccec0" width="600"/>
 
 ### 3.3. Tra cứu pubkey
+
 <img src="https://github.com/user-attachments/assets/0ecd4758-8809-420f-8953-ccd4bab8d33d" width="600"/>
 
 ### 3.4. Tra cứu status (TAAD)
+
 <img src="https://github.com/user-attachments/assets/dc73c910-3425-44b6-9048-8c4e9604e405" width="600"/>
 
 ### 3.5. Authorize / Revoke Key
+
 <img src="https://github.com/user-attachments/assets/ed4d993d-354b-49cb-9672-6f644859d14b" width="600"/>
 
 ### 3.6. Guardian
+
 <img src="https://github.com/user-attachments/assets/9a081849-ea6f-4d40-8c2a-3b36bf515156" width="600"/>
 
 ### 3.7. Indexer sync
-<img src="https://github.com/user-attachments/assets/b61990cb-e713-4716-b145-b91d976001a8" width="600"/>
 
+<img src="https://github.com/user-attachments/assets/b61990cb-e713-4716-b145-b91d976001a8" width="600"/>
 
 ---
 
@@ -150,7 +156,7 @@ CREATE TABLE users (
 ### 5.2. auth_methods — Ánh xạ Web2 Auth → DID (Blind Index)
 
 ```sql
-CREATE TYPE auth_provider AS ENUM ('GOOGLE', 'APPLE', 'PHONE');
+CREATE TYPE auth_provider AS ENUM ('PHONE', 'EMAIL');
 
 CREATE TABLE auth_methods (
   id               UUID PRIMARY KEY,
@@ -170,20 +176,34 @@ CREATE INDEX idx_blind_index ON auth_methods(blind_index_hash);
 ### 5.3. authorized_keys — Quản lý đa thiết bị / LampNet
 
 ```sql
+-- [V1.5] Key Origin Type: SDK cần biết để quyết định tìm mảnh trên LampNet khi Recovery
+CREATE TYPE key_origin_type AS ENUM (
+    'secure_enclave', -- Key sinh trong Secure Enclave/TEE — có mảnh LampNet
+    'imported_bip39', -- Seed phrase nhập từ ngoài (Yoroi, Eternl) — KHÔNG có mảnh LampNet
+    'derived_child'   -- Key derive từ seed gốc
+);
+
 CREATE TABLE authorized_keys (
-  id                   UUID PRIMARY KEY,
-  user_did             VARCHAR(128) REFERENCES users(user_did) ON DELETE CASCADE,
-  public_key_hex       VARCHAR(128) NOT NULL,
-  key_role             VARCHAR(50) DEFAULT 'owner',
-  lampnet_locator_id   VARCHAR(128),
-  added_by_signature   VARCHAR(128) NOT NULL,        -- Zero-Trust: chữ ký từ Root Key
-  status               VARCHAR(20) DEFAULT 'active',  -- 'active', 'revoked'
-  created_at           TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_did, public_key_hex)
+  id                 UUID PRIMARY KEY,
+  user_did           VARCHAR(128) NOT NULL REFERENCES users(user_did) ON DELETE CASCADE,
+  public_key_hex     VARCHAR(128) NOT NULL,
+  -- [V1.5] Nguồn gốc key — quyết định LampNet có được dùng khi Recovery không
+  key_origin         key_origin_type NOT NULL DEFAULT 'secure_enclave',
+  -- Quyền hạn: 'owner' > 'manager' > 'viewer'
+  -- [V1.5] Đổi tên: farm_manager → manager, read_only → viewer
+  key_role           VARCHAR(50) NOT NULL DEFAULT 'owner',
+  added_by_signature VARCHAR(256) NOT NULL,           -- Zero-Trust: chữ ký từ Root Key
+  status             VARCHAR(20) NOT NULL DEFAULT 'active', -- 'active' | 'revoked'
+  created_at         TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT uq_did_pubkey UNIQUE (user_did, public_key_hex),
+  CONSTRAINT chk_key_role CHECK (key_role IN ('owner', 'manager', 'viewer')),
+  CONSTRAINT chk_status CHECK (status IN ('active', 'revoked'))
 );
 ```
 
 > **Zero-Trust:** Backend phải verify `added_by_signature` trước khi INSERT. Nếu Backend bị hack, không thể tự thêm khóa.
+>
+> **[V1.5] Bỏ `lampnet_locator_id`:** LampNet topology thay đổi liên tục — locator được tính on-the-fly bằng `Hash(public_key_hex + SALT)`, không lưu DB.
 
 ### 5.4. guardians — Mạng lưới bảo hộ khôi phục
 
@@ -201,19 +221,22 @@ CREATE TABLE guardians (
 
 ### 5.5. recovery_approvals — Phê duyệt khôi phục
 
-```sql
-CREATE TABLE recovery_approvals (
-  id                   UUID PRIMARY KEY,
-  user_did             VARCHAR(128) NOT NULL,
-  guardian_did         VARCHAR(128) NOT NULL,
-  new_controller_pkh   VARCHAR(64) NOT NULL,
-  guardian_signature   VARCHAR(256) NOT NULL,
-  approved_at         TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_did, guardian_did)
-);
-```
+> ⚠️ **Planned — chưa triển khai trong v1.5.** Bảng này sẽ được thêm trong v2.0 khi luồng Social Recovery on-chain được hoàn thiện.
+>
+> Luồng dự kiến: khi đủ threshold guardian phê duyệt (off-chain) → Indexer sync TAAD state `RECOVERING`.
 
-> Khi đủ threshold guardian phê duyệt → Indexer sync TAAD state.
+```sql
+-- TODO v2.0
+-- CREATE TABLE recovery_approvals (
+--   id                   UUID PRIMARY KEY,
+--   user_did             VARCHAR(128) NOT NULL,
+--   guardian_did         VARCHAR(128) NOT NULL,
+--   new_controller_pkh   VARCHAR(64) NOT NULL,
+--   guardian_signature   VARCHAR(256) NOT NULL,
+--   approved_at          TIMESTAMPTZ DEFAULT NOW(),
+--   UNIQUE(user_did, guardian_did)
+-- );
+```
 
 ### 5.6. onchain_taad_state_cache — Bộ đệm trạng thái on-chain
 
@@ -234,19 +257,72 @@ CREATE TABLE onchain_taad_state_cache (
 
 > ⚠️ **Chỉ Indexer Worker được ghi.** Không nhận lệnh trực tiếp từ App.
 
-### 5.7. activity_logs — Nhật ký kiểm toán (Append-only)
+### 5.7. activity_logs — Nhật ký kiểm toán (Immutable Audit Trail)
 
 ```sql
+-- [V1.5] Partitioned by RANGE(created_at) — tạo partition mới mỗi quý
 CREATE TABLE activity_logs (
-  id          UUID PRIMARY KEY,
-  user_id     UUID REFERENCES users(id),
-  action      VARCHAR(50) NOT NULL,   -- VD: 'login_success', 'key_authorized'
-  metadata    JSONB,                  -- TUYỆT ĐỐI KHÔNG CHỨA PII
-  created_at  TIMESTAMPTZ DEFAULT NOW()
+  id         UUID NOT NULL,
+  user_id    UUID,                  -- nullable: GDPR ON DELETE SET NULL
+  action     VARCHAR(50) NOT NULL,  -- VD: 'login_success', 'key_authorized'
+  metadata   JSONB,                 -- TUYỆT ĐỐI KHÔNG CHỨA PII
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id, created_at)      -- composite PK bắt buộc với partitioned table
+) PARTITION BY RANGE (created_at);
+
+-- Partitions hiện tại (tạo thêm mỗi đầu quý)
+CREATE TABLE activity_logs_2026_q2 PARTITION OF activity_logs
+    FOR VALUES FROM ('2026-04-01') TO ('2026-07-01');
+CREATE TABLE activity_logs_2026_q3 PARTITION OF activity_logs
+    FOR VALUES FROM ('2026-07-01') TO ('2026-10-01');
+```
+
+> **Smart Trigger** (`BEFORE UPDATE OR DELETE`):
+> - Chặn tất cả UPDATE — logs là immutable.
+> - Chặn DELETE khi `user_id IS NOT NULL` — bảo vệ audit trail đang active.
+> - Cho phép DELETE khi `user_id IS NULL` — GDPR erasure hợp lệ (sau khi user xóa tài khoản, ON DELETE SET NULL).
+
+### 5.8. used_nonces — Chống Replay Attack
+
+```sql
+-- [V1.5] Đảm bảo mỗi nonce chỉ được dùng một lần — PostgreSQL PK thay vì Redis TTL
+CREATE TABLE used_nonces (
+    nonce      VARCHAR(64) NOT NULL,
+    user_did   VARCHAR(128) NOT NULL REFERENCES users(user_did) ON DELETE CASCADE,
+    used_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (nonce, user_did)
 );
 ```
 
-> Trigger: `BEFORE UPDATE OR DELETE` → raise exception. Không ai được sửa hay xóa log.
+> **Tại sao PostgreSQL thay vì Redis?** Redis TTL không đảm bảo tính duy nhất tuyệt đối — nonce có thể bị tái sử dụng nếu TTL hết đúng lúc request thứ hai đến. PostgreSQL PRIMARY KEY đảm bảo atomically.
+>
+> Các endpoint yêu cầu nonce: `/keys/authorize`, `/keys/revoke`, `/guardians/add`, `/guardians/remove`.
+>
+> Cleanup: `ScheduledTasksService` chạy mỗi giờ xóa các nonce hết hạn.
+
+### 5.9. pending_invitations — Discovery Bridge
+
+```sql
+-- [V1.5] Lời mời chờ xử lý — dành cho user chưa có app
+CREATE TABLE pending_invitations (
+    id                UUID PRIMARY KEY,
+    inviter_user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    invitee_blind_hash VARCHAR(64) NOT NULL, -- HMAC_SHA256(phone_or_email, SERVER_PEPPER)
+    invite_type       VARCHAR(20) NOT NULL,  -- 'guardian' | 'manager'
+    expires_at        TIMESTAMPTZ NOT NULL,
+    status            VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending' | 'resolved' | 'expired'
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+> **Discovery Bridge Flow:**
+> 1. User A nhập SĐT/Email của User B để mời làm Guardian.
+> 2. Backend tính `blind_index_hash` của User B.
+> 3. Nếu User B chưa có app → ghi vào `pending_invitations`.
+> 4. Khi User B đăng ký bằng SĐT/Email đó → Backend match blind hash → tự động resolve → ghi guardian vào `guardians`.
+>
+> Cleanup: `ScheduledTasksService` chạy mỗi giờ đánh dấu lời mời hết hạn thành `expired`.
 
 ---
 
@@ -360,34 +436,47 @@ Nếu team OriLife hoặc AladinWork yêu cầu → gửi RFC lên Tech Steering
 PhoenixKey-Database/
 ├── src/main/
 │   ├── java/com/magiclamp/phoenixkey_db/
-│   │   ├── PhoenixkeyDbApplication.java
+│   │   ├── PhoenixkeyDbApplication.java     # @EnableScheduling
 │   │   ├── common/
-│   │   │   ├── ApiResponse.java              # Wrapper response
+│   │   │   ├── DataResponse.java            # Wrapper response
 │   │   │   └── UuidGenerator.java           # UUIDv7 generator
 │   │   ├── config/
-│   │   │   ├── VaultConfig.java             # Đọc SERVER_PEPPER từ Vault
+│   │   │   ├── VaultConfig.java             # RestTemplate cho Vault HTTP API
 │   │   │   ├── RedisConfig.java
+│   │   │   ├── OpenApiConfig.java           # Swagger/OpenAPI 3
 │   │   │   └── SecurityConfig.java
 │   │   ├── domain/                          # JPA Entities
+│   │   │   ├── User.java
+│   │   │   ├── AuthMethod.java
+│   │   │   ├── AuthProvider.java            # Enum: PHONE | EMAIL
+│   │   │   ├── AuthorizedKey.java
+│   │   │   ├── KeyOriginType.java           # [V1.5] Enum: secure_enclave | imported_bip39 | derived_child
+│   │   │   ├── Guardian.java
+│   │   │   ├── OnchainTaadStateCache.java
+│   │   │   ├── TaadStatus.java              # Enum: ACTIVE | RECOVERING | MIGRATED
+│   │   │   ├── ActivityLog.java             # Partitioned entity
+│   │   │   ├── ActivityLogId.java           # [V1.5] Composite PK cho partitioned table
+│   │   │   ├── UsedNonce.java               # [V1.5] Replay Attack protection
+│   │   │   ├── UsedNonceId.java             # [V1.5] Composite PK (nonce, user_did)
+│   │   │   └── PendingInvitation.java       # [V1.5] Discovery Bridge
 │   │   ├── dto/
 │   │   │   ├── request/                     # *Request.java (record)
-│   │   │   └── response/                     # *Response.java (record)
+│   │   │   └── response/                    # *Response.java (record)
 │   │   ├── repository/                      # Spring Data JPA
 │   │   ├── service/
+│   │   │   ├── PepperVaultService.java      # Đọc pepper từ HashiCorp Vault
 │   │   │   ├── RedisService.java            # OTP/Session/RateLimit Redis
 │   │   │   ├── ActivityLogService.java      # Audit trail logging
-│   │   │   ├── AuthService.java             # Interface
-│   │   │   ├── impl/AuthServiceImpl.java
-│   │   │   ├── IdentityService.java         # Interface
-│   │   │   ├── impl/IdentityServiceImpl.java
-│   │   │   ├── KeyService.java             # Interface
-│   │   │   ├── impl/KeyServiceImpl.java
-│   │   │   ├── GuardianService.java         # Interface
-│   │   │   ├── impl/GuardianServiceImpl.java
-│   │   │   ├── IndexerService.java         # Interface
-│   │   │   └── impl/IndexerServiceImpl.java
+│   │   │   ├── NonceService.java            # [V1.5] Replay Attack: check/store nonce
+│   │   │   ├── InvitationService.java       # [V1.5] Discovery Bridge
+│   │   │   ├── AuthService.java / impl/
+│   │   │   ├── IdentityService.java / impl/
+│   │   │   ├── KeyService.java / impl/
+│   │   │   ├── GuardianService.java / impl/
+│   │   │   ├── IndexerService.java / impl/
+│   │   │   └── impl/ScheduledTasksService.java  # [V1.5] Cleanup nonces + invitations mỗi giờ
 │   │   ├── crypto/
-│   │   │   └── BlindIndexService.java      # HMAC-SHA256 + Pepper
+│   │   │   └── BlindIndexService.java       # HMAC-SHA256 + Pepper
 │   │   └── exception/
 │   │       ├── AppException.java
 │   │       ├── ErrorCode.java
@@ -396,11 +485,13 @@ PhoenixKey-Database/
 │       ├── application.yml
 │       └── db/migration/
 │           ├── V1__create_identity_core.sql
-│           ├── V2__create_authorized_keys.sql
+│           ├── V2__create_authorized_keys.sql   # [V1.5] key_origin_type + xóa lampnet_locator_id
 │           ├── V3__create_guardians.sql
 │           ├── V4__create_onchain_cache.sql
-│           ├── V5__create_activity_logs.sql
-│           └── V6__create_recovery_approvals.sql
+│           ├── V5__create_activity_logs.sql     # [V1.5] Partitioned table
+│           ├── V6__create_used_nonces.sql        # [V1.5] Replay Attack protection
+│           └── V7__create_pending_invitations.sql # [V1.5] Discovery Bridge
+├── PhoenixKey.postman_collection.json       # Postman collection đầy đủ
 ├── docker-compose.yml
 └── README.md
 ```
@@ -470,11 +561,14 @@ mvn flyway:info
 
 ## Tài liệu liên quan
 
-| Tài liệu                        | Mô tả                          |
-| ------------------------------- | ------------------------------ |
-| `[PhoenixKey]-Database.docx`    | Đặc tả CSDL chi tiết (v1.1)    |
-| `PhoenixKey-Development.docx`   | Lộ trình MVP + PoC + Milestone |
-| `PhoenixKey_Database_Plan.docx` | Kế hoạch triển khai            |
+| Tài liệu                                  | Mô tả                                            |
+| ----------------------------------------- | ------------------------------------------------ |
+| `[PhoenixKey]-Database.docx`              | Đặc tả CSDL chi tiết (v1.1)                     |
+| `PhoenixKey-Development.docx`             | Lộ trình MVP + PoC + Milestone                  |
+| `PhoenixKey_Database_Plan.docx`           | Kế hoạch triển khai                             |
+| `docs/Update_V1_5.md`                     | Changelog đầy đủ v1.5 — Done 2026-04-19        |
+| `docs/HashiCorpVault.md`                  | Hướng dẫn setup HCP Vault + seed pepper         |
+| `PhoenixKey.postman_collection.json`      | Postman collection — tất cả API endpoints v1.5  |
 
 ---
 

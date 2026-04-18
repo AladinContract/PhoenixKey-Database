@@ -1,5 +1,6 @@
 package com.magiclamp.phoenixkey_db.service.impl;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,7 @@ import com.magiclamp.phoenixkey_db.repository.AuthorizedKeyRepository;
 import com.magiclamp.phoenixkey_db.repository.UserRepository;
 import com.magiclamp.phoenixkey_db.service.ActivityLogService;
 import com.magiclamp.phoenixkey_db.service.KeyService;
+import com.magiclamp.phoenixkey_db.service.NonceService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +32,7 @@ public class KeyServiceImpl implements KeyService {
     private final UserRepository userRepository;
     private final ActivityLogService activityLogService;
     private final UuidGenerator uuidGenerator;
+    private final NonceService nonceService;
 
     // ──────────────────────────────────────────────────────────────
     // Authorize
@@ -38,6 +41,9 @@ public class KeyServiceImpl implements KeyService {
     @Override
     @Transactional
     public KeyAuthorizeResponse authorize(KeyAuthorizeRequest request) {
+        // [V1.5] Validate + consume nonce — chống replay attack
+        nonceService.validateAndConsume(request.nonce(), request.userDid(), Duration.ofMinutes(5));
+
         // Verify user tồn tại
         User user = userRepository.findByUserDid(request.userDid())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_DID_NOT_FOUND));
@@ -45,7 +51,7 @@ public class KeyServiceImpl implements KeyService {
         // Check: key chưa được authorized cho user này?
         // Chỉ check active key của chính user — không block key đã revoked
         // (revoked key có thể được authorize lại sau khi revoke)
-        if (authorizedKeyRepository.existsByUserUserDidAndPublicKeyHexAndStatus(
+        if (authorizedKeyRepository.existsByUserDidAndPublicKeyHexAndStatus(
                 request.userDid(), request.publicKeyHex(), "active")) {
             throw new AppException(ErrorCode.KEY_ALREADY_AUTHORIZED);
         }
@@ -53,8 +59,9 @@ public class KeyServiceImpl implements KeyService {
         // Insert authorized_key
         AuthorizedKey key = AuthorizedKey.builder()
                 .id(uuidGenerator.create())
-                .user(user)
+                .userDid(request.userDid())
                 .publicKeyHex(request.publicKeyHex())
+                .keyOrigin(request.keyOrigin())
                 .keyRole(request.keyRole())
                 .addedBySignature(request.addedBySignature())
                 .status("active")
@@ -62,12 +69,13 @@ public class KeyServiceImpl implements KeyService {
                 .build();
         authorizedKeyRepository.save(key);
 
-        log.info("Key authorized: userDid={}, pubkey={}, role={}",
-                request.userDid(), request.publicKeyHex(), request.keyRole());
+        log.info("Key authorized: userDid={}, pubkey={}, role={}, origin={}",
+                request.userDid(), request.publicKeyHex(), request.keyRole(), request.keyOrigin());
 
         activityLogService.log(user.getId(), ActivityLogService.ACTION_KEY_AUTHORIZED,
                 Map.of("public_key_hex", request.publicKeyHex(),
-                        "key_role", request.keyRole()));
+                        "key_role", request.keyRole(),
+                        "key_origin", request.keyOrigin().name()));
 
         return new KeyAuthorizeResponse(key.getId().toString());
     }
@@ -79,6 +87,9 @@ public class KeyServiceImpl implements KeyService {
     @Override
     @Transactional
     public void revoke(KeyRevokeRequest request) {
+        // [V1.5] Validate + consume nonce — chống replay attack
+        nonceService.validateAndConsume(request.nonce(), request.userDid(), Duration.ofMinutes(5));
+
         // Verify user tồn tại
         User user = userRepository.findByUserDid(request.userDid())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_DID_NOT_FOUND));
@@ -88,7 +99,7 @@ public class KeyServiceImpl implements KeyService {
                 .orElseThrow(() -> new AppException(ErrorCode.KEY_NOT_FOUND));
 
         // Verify: key thuộc user này?
-        if (!key.getUser().getUserDid().equals(request.userDid())) {
+        if (!key.getUserDid().equals(request.userDid())) {
             throw new AppException(ErrorCode.KEY_NOT_FOUND);
         }
 

@@ -2,6 +2,7 @@ package com.magiclamp.phoenixkey_db.service.impl;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -79,10 +80,14 @@ public class AuthServiceImpl implements AuthService {
      * - NestJS trả blind_hash cho App
      * - App gọi endpoint này với blind_hash + otp
      * - PK_DB lookup Redis bằng blind_hash → so sánh OTP
-     * - Đúng → set is_verified = true
+     * - Đúng → set is_verified = true → trả userId + credential
+     *
+     * [V1.5] Trả về thêm userId (UUID) + credential để:
+     * - App dùng userId cho các operation tiếp theo
+     * - InvitationService.resolveOnRegistration dùng credential (blindHash)
      *
      * @param request chứa blind_hash + otp
-     * @return user_did nếu user đã đăng ký, null nếu user mới
+     * @return userId (nếu đã đăng ký) + blindHash + credential
      */
     @Override
     @Transactional
@@ -134,6 +139,9 @@ public class AuthServiceImpl implements AuthService {
                 .orElse(null);
 
         String userDid = null;
+        UUID userId = null;
+        String credential = credentialOpt.orElse(null);
+
         if (authMethod != null) {
             // User đã đăng ký
             int currentVersion = blindIndexService.getCurrentPepperVersion();
@@ -151,7 +159,9 @@ public class AuthServiceImpl implements AuthService {
 
             authMethod.setIsVerified(true);
             authMethodRepository.save(authMethod);
+
             userDid = authMethod.getUser().getUserDid();
+            userId = authMethod.getUser().getId();
 
             activityLogService.log(
                     authMethod.getUser().getId(),
@@ -167,6 +177,7 @@ public class AuthServiceImpl implements AuthService {
                             IP_HASH, request.ipHash()));
         }
 
-        return new OtpVerifyResponse(userDid, blindHash);
+        // [V1.5] Trả về userId + credential (dùng cho invitation resolution)
+        return new OtpVerifyResponse(userDid, userId, blindHash, credential);
     }
 }

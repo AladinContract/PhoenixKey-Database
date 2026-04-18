@@ -38,6 +38,12 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- Actuator — health check, metrics -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
         <!-- JPA + PostgreSQL -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
