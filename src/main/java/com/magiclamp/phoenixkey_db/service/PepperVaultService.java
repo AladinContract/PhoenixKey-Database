@@ -7,7 +7,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -77,13 +79,7 @@ public class PepperVaultService {
      */
     private void loadPeppers() {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-Vault-Token", vaultToken);
-            // HCP Vault dùng namespace header
-            if (vaultNamespace != null && !vaultNamespace.isBlank()) {
-                headers.set("X-Vault-Namespace", vaultNamespace);
-            }
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            HttpEntity<Void> entity = new HttpEntity<>(buildAuthHeaders());
 
             // Vault KV v2
             String url = vaultUri + "/v1/secret/data/phoenixkey/pepper";
@@ -154,5 +150,72 @@ public class PepperVaultService {
     /** Kiểm tra version có tồn tại trong Vault không. */
     public boolean hasVersion(int version) {
         return pepperByVersion.containsKey(version);
+    }
+
+    /**
+     * Tự động gia hạn Vault token mỗi Chủ Nhật 3h sáng (UTC).
+     *
+     * Điều kiện: token phải được tạo với flag `-renewable=true -period=720h`.
+     * Sau mỗi lần renew, TTL reset về 30 ngày (720h).
+     *
+     * Nếu renew fail (token đã revoke / bị xóa policy) → chỉ log error,
+     * không throw để app vẫn chạy. Pepper đã cache in-memory từ startup
+     * nên app vẫn phục vụ request bình thường, nhưng lần restart tiếp theo
+     * sẽ fail nếu token thực sự expire — cần alert kịp thời.
+     */
+    @Scheduled(cron = "0 0 3 * * SUN", zone = "UTC")
+    public void renewToken() {
+        try {
+            HttpHeaders headers = buildAuthHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<String> entity = new HttpEntity<>("{\"increment\":\"720h\"}", headers);
+
+            restTemplate.exchange(
+                    vaultUri + "/v1/auth/token/renew-self",
+                    HttpMethod.POST, entity, String.class);
+
+            log.info("Vault token renewed successfully (TTL reset to 720h)");
+        } catch (Exception e) {
+            log.error("Failed to renew Vault token — manual intervention may be needed: {}",
+                    e.getMessage());
+        }
+    }
+
+    /**
+     * Kiểm tra TTL còn lại của token mỗi giờ.
+     * Cảnh báo nếu < 72h → admin cần generate token mới trước khi expire.
+     */
+    @Scheduled(cron = "0 0 * * * *", zone = "UTC")
+    public void checkTokenHealth() {
+        try {
+            HttpEntity<Void> entity = new HttpEntity<>(buildAuthHeaders());
+
+            ResponseEntity<String> resp = restTemplate.exchange(
+                    vaultUri + "/v1/auth/token/lookup-self",
+                    HttpMethod.GET, entity, String.class);
+
+            long ttlSeconds = objectMapper.readTree(resp.getBody())
+                    .path("data").path("ttl").asLong();
+            long hoursLeft = ttlSeconds / 3600;
+
+            if (hoursLeft < 72) {
+                log.error("⚠️ Vault token TTL critical: {}h left. Renew or rotate NOW.", hoursLeft);
+            } else if (hoursLeft < 168) {
+                log.warn("Vault token TTL low: {}h left ({}d)", hoursLeft, hoursLeft / 24);
+            } else {
+                log.debug("Vault token TTL healthy: {}h left", hoursLeft);
+            }
+        } catch (Exception e) {
+            log.error("Failed to check Vault token TTL: {}", e.getMessage());
+        }
+    }
+
+    private HttpHeaders buildAuthHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Vault-Token", vaultToken);
+        if (vaultNamespace != null && !vaultNamespace.isBlank()) {
+            headers.set("X-Vault-Namespace", vaultNamespace);
+        }
+        return headers;
     }
 }
