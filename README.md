@@ -278,6 +278,7 @@ CREATE TABLE activity_logs_2026_q3 PARTITION OF activity_logs
 ```
 
 > **Smart Trigger** (`BEFORE UPDATE OR DELETE`):
+>
 > - Chặn tất cả UPDATE — logs là immutable.
 > - Chặn DELETE khi `user_id IS NOT NULL` — bảo vệ audit trail đang active.
 > - Cho phép DELETE khi `user_id IS NULL` — GDPR erasure hợp lệ (sau khi user xóa tài khoản, ON DELETE SET NULL).
@@ -317,6 +318,7 @@ CREATE TABLE pending_invitations (
 ```
 
 > **Discovery Bridge Flow:**
+>
 > 1. User A nhập SĐT/Email của User B để mời làm Guardian.
 > 2. Backend tính `blind_index_hash` của User B.
 > 3. Nếu User B chưa có app → ghi vào `pending_invitations`.
@@ -561,14 +563,14 @@ mvn flyway:info
 
 ## Tài liệu liên quan
 
-| Tài liệu                                  | Mô tả                                            |
-| ----------------------------------------- | ------------------------------------------------ |
-| `[PhoenixKey]-Database.docx`              | Đặc tả CSDL chi tiết (v1.1)                     |
-| `PhoenixKey-Development.docx`             | Lộ trình MVP + PoC + Milestone                  |
-| `PhoenixKey_Database_Plan.docx`           | Kế hoạch triển khai                             |
-| `docs/Update_V1_5.md`                     | Changelog đầy đủ v1.5 — Done 2026-04-19        |
-| `docs/HashiCorpVault.md`                  | Hướng dẫn setup HCP Vault + seed pepper         |
-| `PhoenixKey.postman_collection.json`      | Postman collection — tất cả API endpoints v1.5  |
+| Tài liệu                             | Mô tả                                          |
+| ------------------------------------ | ---------------------------------------------- |
+| `[PhoenixKey]-Database.docx`         | Đặc tả CSDL chi tiết (v1.1)                    |
+| `PhoenixKey-Development.docx`        | Lộ trình MVP + PoC + Milestone                 |
+| `PhoenixKey_Database_Plan.docx`      | Kế hoạch triển khai                            |
+| `docs/Update_V1_5.md`                | Changelog đầy đủ v1.5 — Done 2026-04-19        |
+| `docs/HashiCorpVault.md`             | Hướng dẫn setup HCP Vault + seed pepper        |
+| `PhoenixKey.postman_collection.json` | Postman collection — tất cả API endpoints v1.5 |
 
 ---
 
