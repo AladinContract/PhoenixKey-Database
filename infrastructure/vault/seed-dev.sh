@@ -52,5 +52,7 @@ if [ -n "${APNS_AUTH_KEY_PATH:-}" ] && [ -f "$APNS_AUTH_KEY_PATH" ]; then
 fi
 
 echo
-echo "✓ Seed complete. Verify:"
-echo "    vault kv list secret/phoenixkey"
+echo "==> Verifying seeded paths..."
+vault kv list secret/phoenixkey
+echo
+echo "✓ Seed complete."
