@@ -1,7 +1,6 @@
 package com.magiclamp.phoenixkey_db.service;
 
 import com.magiclamp.phoenixkey_db.dto.request.IdentityRegisterRequest;
-import com.magiclamp.phoenixkey_db.dto.request.UserDidUpdateRequest;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityPubkeyResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityRegisterResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityStatusResponse;
@@ -12,17 +11,15 @@ import com.magiclamp.phoenixkey_db.dto.response.IdentityStatusResponse;
 public interface IdentityService {
 
     /**
-     * Đăng ký identity mới.
+     * Đăng ký identity mới — 1-step (mint DID Cardano + insert user trong cùng transaction).
      *
-     * NestJS gọi sau khi App hoàn tất OTP verify.
-     * PK_DB:
-     *   1. Hash credential → blind_hash
-     *   2. Tạo UUIDv7 cho user_id
-     *   3. Insert users + auth_methods + authorized_keys
-     *   4. Trả về user_id + user_did
+     * Flow:
+     *   1. Verify Genesis signature từ Hardware Key (proof có private key)
+     *   2. Publish DID Document lên Cardano qua CardanoService
+     *   3. Insert users + authorized_keys với userDid lấy từ tx hash
      *
-     * @param request chứa credential + pubkey + signature
-     * @return userId + userDid
+     * @param request publicKeyHex + keyOrigin + keyRole + addedBySignature
+     * @return userId + userDid + txHash
      */
     IdentityRegisterResponse register(IdentityRegisterRequest request);
 
@@ -41,16 +38,4 @@ public interface IdentityService {
      * @return status, controller PKH, sequence, deadline
      */
     IdentityStatusResponse getStatus(String userDid);
-
-    /**
-     * Update userDid sau khi NestJS mint DID trên Cardano.
-     *
-     * Sau khi App đăng ký → PK_DB tạo user với userDid = "pending".
-     * NestJS mint DID xong → gọi endpoint này để update DID thực sự.
-     *
-     * @param request chứa userId + userDid đã mint
-     * @throws AppException(ErrorCode.USER_NOT_FOUND) nếu userId không tồn tại
-     * @throws AppException(ErrorCode.USER_DID_ALREADY_EXISTS) nếu DID đã được gán cho user khác
-     */
-    void updateUserDid(UserDidUpdateRequest request);
 }

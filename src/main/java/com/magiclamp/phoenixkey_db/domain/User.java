@@ -11,16 +11,16 @@ import java.util.UUID;
 /**
  * Lõi Định danh — mỗi dòng = một DID duy nhất trên Blockchain Cardano.
  *
- * PhoenixKey Database KHÔNG lưu PII (tên, email, SĐT) ở đây.
- * Mọi ánh xạ DID ↔ Web2 credentials nằm trong {@link AuthMethod}.
+ * PhoenixKey-Server KHÔNG lưu PII (tên, email, SĐT) — flow mới chỉ Hardware Key
+ * trong Secure Enclave mobile + biometric.
  *
  * Nguyên tắc:
- * - id = UUIDv7 do Backend tạo (timestamp-prefixed, tốt cho B-Tree insert)
- * - user_did = DID string bất biến suốt vòng đời user (không đổi kể cả khi key
- * rotation)
- * - Tài sản (Job, Jem, NFT) gắn với user_did, không gắn với key
+ * - id = UUIDv7 do server tạo (timestamp-prefixed, tốt cho B-Tree insert)
+ * - user_did = DID string bất biến suốt vòng đời user (không đổi kể cả khi xoay
+ *   khóa). Format: {@code did:cardano:<network>:<txHash>}
+ * - {@code seed_exported_at} đánh dấu user đã trích xuất Seed Phrase (spec §9.5)
+ *   — dashboard banner cảnh báo health thấp đến khi user thực hiện Key Rotation.
  *
- * @see AuthMethod
  * @see AuthorizedKey
  * @see Guardian
  */
@@ -35,14 +35,14 @@ public class User {
 
     /**
      * UUIDv7 — timestamp-prefixed.
-     * Backend tạo trước khi INSERT, KHÔNG dùng gen_random_uuid() của PostgreSQL.
+     * Server tạo trước khi INSERT, KHÔNG dùng gen_random_uuid() của PostgreSQL.
      */
     @Id
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
     /**
-     * DID string từ Blockchain (did:prism:... hoặc did:cardano:...).
+     * DID string từ Blockchain ({@code did:cardano:<network>:<txHash>}).
      * Bất biến suốt vòng đời — không thay đổi kể cả khi xoay khóa (key rotation).
      * Tài sản số gắn với DID này, không gắn với key.
      */
@@ -53,7 +53,6 @@ public class User {
      * [V1.5] Optimistic Locking cho đa thiết bị.
      * JPA tự động tăng version mỗi khi entity được merged.
      * Chống xung đột ghi đồng thời trên đa thiết bị.
-     *
      */
     @Version
     @Column(name = "version", nullable = false)
@@ -62,13 +61,21 @@ public class User {
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
+    /**
+     * [Spec §9.5] Thời điểm user trích xuất Seed Phrase qua flow {@code SEED_EXPORT}.
+     *
+     * Khi {@code != null}, dashboard hiển thị banner cảnh báo bảo mật:
+     * - 0–72h: cảnh báo vàng
+     * - >72h: cảnh báo đỏ (không tắt được, chỉ Key Rotation mới reset)
+     *
+     * Sau khi Key Rotation thành công → reset về null.
+     */
+    @Column(name = "seed_exported_at")
+    private OffsetDateTime seedExportedAt;
+
     // ──────────────────────────────────────────────────────────────
     // Relations
     // ──────────────────────────────────────────────────────────────
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<AuthMethod> authMethods = new ArrayList<>();
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

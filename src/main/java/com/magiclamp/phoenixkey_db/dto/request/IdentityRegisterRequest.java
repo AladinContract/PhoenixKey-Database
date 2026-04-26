@@ -1,41 +1,33 @@
 package com.magiclamp.phoenixkey_db.dto.request;
 
-import com.magiclamp.phoenixkey_db.domain.AuthProvider;
 import com.magiclamp.phoenixkey_db.domain.KeyOriginType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 /**
- * [V1.5] Request DTO cho {@code POST /api/v1/identity/register}.
+ * Request DTO cho {@code POST /api/v1/identity/register}.
  *
- * NestJS gọi khi App hoàn tất đăng ký, đã có:
- * - Credential đã verify OTP
- * - Public key hex từ Secure Enclave/TEE
- * - Chữ ký Zero-Trust từ root key
+ * Mobile gọi sau khi sinh Hardware Key trong Secure Enclave/TEE. Server:
+ * 1. Verify Genesis signature trên payload {@code "PHOENIXKEY_GENESIS:" + publicKeyHex}
+ * 2. Publish DID Document lên Cardano qua {@code CardanoService.createDID()}
+ * 3. Insert {@code users} + {@code authorized_keys} (1-step, không còn pending)
  *
- * [V1.5] keyOrigin bắt buộc — biết nguồn gốc key để quyết định
- * có dùng LampNet khi Recovery hay không.
- *
- * PK_DB:
- * - Hash credential → blind_hash
- * - Tạo UUIDv7 cho user_id
- * - Insert users + auth_methods + authorized_keys
- * - Trả về user_id + user_did (NestJS tự mint DID trên Cardano sau)
+ * Bỏ {@code credential}/{@code provider}/{@code blindHash} — flow mới Zero-PII
+ * không lưu email/SĐT.
  */
 public record IdentityRegisterRequest(
-        @NotBlank(message = "Credential is required") String credential,
-
-        @NotNull(message = "Provider is required") AuthProvider provider,
-
         /** Public key hex từ Secure Enclave / TEE chip. */
         @NotBlank(message = "Public key is required") String publicKeyHex,
 
-        /** [V1.5] Nguồn gốc key. */
+        /** Nguồn gốc key — quyết định luồng Recovery. */
         @NotNull(message = "Key origin is required") KeyOriginType keyOrigin,
 
         /** owner | manager | viewer */
         @NotBlank(message = "Key role is required") String keyRole,
 
-        /** Zero-Trust: chữ ký từ root key chứng minh user đồng ý. */
+        /**
+         * Genesis signature (DER-encoded ECDSA SECP256K1) từ Hardware Key,
+         * ký trên message {@code "PHOENIXKEY_GENESIS:" + publicKeyHex}.
+         */
         @NotBlank(message = "Added by signature is required") String addedBySignature) {
 }

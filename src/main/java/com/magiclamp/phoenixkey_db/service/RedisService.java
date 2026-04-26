@@ -12,12 +12,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Service quản lý Redis cache cho OTP, Session, Rate Limit.
+ * Service quản lý Redis cache cho Session + Rate Limit.
  *
- * Ba mục đích:
- * - {@code otp:auth:{blind_hash}} — Lưu OTP, TTL 5 phút
+ * Hai mục đích chính:
+ * - {@code session:token:{jwt_hash}} — Phiên đăng nhập web, TTL 24 giờ
  * - {@code ratelimit:ip:{ip_hash}} — Đếm request/IP, TTL 1 giờ
- * - {@code session:token:{jwt_hash}} — Phiên đăng nhập, TTL 24 giờ
+ *
+ * Phase D sẽ thêm: {@code session:init:*}, {@code sign-req:*}, {@code linked-device:*}.
  */
 @Service
 @RequiredArgsConstructor
@@ -26,104 +27,14 @@ public class RedisService {
 
     private final StringRedisTemplate redisTemplate;
 
-    @Value("${phoenixkey.otp.ttl-seconds:300}")
-    private int otpTtlSeconds;
-
     @Value("${phoenixkey.session.ttl-seconds:86400}")
     private int sessionTtlSeconds;
 
     @Value("${phoenixkey.rate-limit.ttl-seconds:3600}")
     private int rateLimitTtlSeconds;
 
-    private static final String OTP_PREFIX = "otp:auth:";
-    private static final String OTP_CRED_PREFIX = "otp:cred:";  // credential kèm OTP (dùng cho re-hash)
     private static final String RATE_LIMIT_PREFIX = "ratelimit:ip:";
     private static final String SESSION_PREFIX = "session:token:";
-
-    private static final String KEY_SUFFIX = ":attempts";
-
-    // ──────────────────────────────────────────────────────────────
-    // OTP
-    // ──────────────────────────────────────────────────────────────
-
-    /**
-     * Lưu OTP + credential vào Redis.
-     *
-     * @param blindHash   HMAC-SHA256 hash của credential
-     * @param otp         Mã OTP 6 chữ số
-     * @param credential  Credential gốc (email/phone) — dùng để re-hash khi pepper rotate
-     */
-    public void saveOtp(String blindHash, String otp, String credential) {
-        String otpKey = OTP_PREFIX + blindHash;
-        String credKey = OTP_CRED_PREFIX + blindHash;
-        redisTemplate.opsForValue().set(otpKey, otp, Duration.ofSeconds(otpTtlSeconds));
-        redisTemplate.opsForValue().set(credKey, credential, Duration.ofSeconds(otpTtlSeconds));
-        log.debug("OTP + credential saved for blind_hash={}, ttl={}s", blindHash, otpTtlSeconds);
-    }
-
-    /**
-     * Lấy OTP từ Redis.
-     *
-     * @param blindHash blind hash của credential
-     * @return OTP nếu còn, empty nếu hết hạn
-     */
-    public Optional<String> getOtp(String blindHash) {
-        return Optional.ofNullable(redisTemplate.opsForValue().get(OTP_PREFIX + blindHash));
-    }
-
-    /**
-     * Xóa OTP + credential khỏi Redis (sau khi verify thành công hoặc hết hạn).
-     *
-     * @param blindHash blind hash của credential
-     */
-    public void deleteOtp(String blindHash) {
-        redisTemplate.delete(OTP_PREFIX + blindHash);
-        redisTemplate.delete(OTP_CRED_PREFIX + blindHash);
-    }
-
-    /**
-     * Lấy credential gốc từ Redis (dùng để re-hash sau khi pepper rotate).
-     *
-     * @param blindHash blind hash của credential
-     * @return credential nếu còn, empty nếu hết hạn
-     */
-    public Optional<String> getCredential(String blindHash) {
-        return Optional.ofNullable(
-                redisTemplate.opsForValue().get(OTP_CRED_PREFIX + blindHash));
-    }
-
-    /**
-     * Tăng số lần nhập sai OTP.
-     *
-     * @param blindHash blind hash của credential
-     * @return số lần sai hiện tại
-     */
-    public long incrementOtpAttempts(String blindHash) {
-        String key = OTP_PREFIX + blindHash + KEY_SUFFIX;
-        Long count = redisTemplate.opsForValue().increment(key);
-        redisTemplate.expire(key, Duration.ofSeconds(otpTtlSeconds));
-        return count != null ? count : 0;
-    }
-
-    /**
-     * Reset số lần nhập sai OTP.
-     *
-     * @param blindHash blind hash của credential
-     */
-    public void resetOtpAttempts(String blindHash) {
-        redisTemplate.delete(OTP_PREFIX + blindHash + KEY_SUFFIX);
-    }
-
-    /**
-     * Lấy số lần sai OTP hiện tại.
-     *
-     * @param blindHash blind hash của credential
-     * @return số lần sai
-     */
-    public long getOtpAttempts(String blindHash) {
-        String val = redisTemplate.opsForValue().get(OTP_PREFIX + blindHash + KEY_SUFFIX);
-        return val != null ? Long.parseLong(val) : 0;
-    }
 
     // ──────────────────────────────────────────────────────────────
     // Session

@@ -1,6 +1,6 @@
 spring:
   application:
-    name: phoenixkey-db
+    name: phoenixkey-server
 
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:5432/phoenixkey
@@ -50,27 +50,35 @@ spring:
 # ──────────────────────────────────────────────────────────
 # PhoenixKey Config
 #
-# PEPPER:
-#   Pepper được đọc từ HashiCorp Vault tại secret/data/phoenixkey/pepper
-#   Vault KV v2: bao gồm current_version + tất cả pepper cũ (multi-version)
+# Secrets (fee-wallet mnemonic, JWT secret, FCM/APNs creds) được load từ
+# HashiCorp Vault qua VaultSecretService. Layout chuẩn:
+#   secret/phoenixkey/fee-wallet/mnemonic   { "words": [...] }
+#   secret/phoenixkey/jwt/secret            { "key": "<base64>" }
+#   secret/phoenixkey/fcm/service-account   { "json": "..." }
+#   secret/phoenixkey/apns/auth-key         { "key": "...", "keyId": "...", "teamId": "..." }
 #
-# Env:
-#   VAULT_ADDR: Vault URI (http://localhost:8200 local, https://... HCP/prod)
-#   VAULT_TOKEN: Vault token (bắt buộc)
-#   VAULT_NAMESPACE: HCP Vault namespace (không bắt buộc)
+# Env bắt buộc:
+#   VAULT_ADDR: Vault URI (dev: http://localhost:8200, prod: HCP URL)
+#   VAULT_TOKEN: Vault token
+#   VAULT_NAMESPACE: chỉ cần cho HCP Vault
+# Dev fallback (chỉ khi VAULT_ENABLED=false):
+#   FEE_WALLET_MNEMONIC, PHOENIXKEY_JWT_SECRET
 # ──────────────────────────────────────────────────────────
 phoenixkey:
-  # Pepper được đọc từ HashiCorp Vault tại secret/phoenixkey/pepper
-  # Bao gồm current_version + tất cả pepper cũ (multi-version)
-  # Không còn fallback config ở đây
-  otp:
-    ttl-seconds: 300
-    max-attempts: 5
   session:
     ttl-seconds: 86400
+  challenge:
+    ttl-seconds: 300              # QR challenge TTL (spec §6.3)
+  sign-request:
+    ttl-seconds: 120              # Sign request TTL (spec §2.4)
   rate-limit:
-    otp-per-hour: 5
     ttl-seconds: 3600
+  cardano:
+    network: ${CARDANO_NETWORK:preprod}
+    blockfrost-api-key: ${BLOCKFROST_API_KEY:}
+    confirm-timeout-ms: 120000
+    # Fee wallet mnemonic load từ Vault tại secret/phoenixkey/fee-wallet/mnemonic
+    # FeeWalletService gọi vaultSecretService.getFeeWalletMnemonic() trong @PostConstruct.
 
 server:
   port: 8080

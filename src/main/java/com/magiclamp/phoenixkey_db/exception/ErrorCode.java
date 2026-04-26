@@ -5,14 +5,15 @@ import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
 /**
- * Mã lỗi cho toàn bộ PhoenixKey Database.
+ * Mã lỗi cho toàn bộ PhoenixKey Server.
  *
  * Quy tắc đánh số:
- * - 1xxx — Auth / Đăng nhập / OTP
+ * - 13xx — Web Session (QR pairing + SSE)
+ * - 14xx — Sign Request (web ↔ mobile relay)
  * - 2xxx — User / DID
  * - 3xxx — Authorized Key / Thiết bị
  * - 4xxx — Guardian / Social Recovery
- * - 5xxx — TAAD / On-chain State
+ * - 5xxx — TAAD / On-chain State / Cardano
  * - 9xxx — System errors
  */
 @Getter
@@ -20,29 +21,30 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
 
     // ──────────────────────────────────────────────────────────────
-    // 1xxx — Auth / Đăng nhập / OTP
+    // 13xx — Web Session (QR pairing + SSE)
     // ──────────────────────────────────────────────────────────────
 
-    /** Blind hash không tìm thấy — chưa đăng ký. */
-    AUTH_METHOD_NOT_FOUND(1001, "Auth method not found", HttpStatus.NOT_FOUND),
+    /** Session id không tìm thấy hoặc temp_token sai. */
+    SESSION_NOT_FOUND(1301, "Session not found", HttpStatus.NOT_FOUND),
 
-    /** Blind hash đã tồn tại — user đã đăng ký với credential này. */
-    AUTH_METHOD_ALREADY_EXISTS(1002, "Auth method already registered", HttpStatus.CONFLICT),
+    /** Session đã quá TTL (5 phút). */
+    SESSION_EXPIRED(1302, "Session expired", HttpStatus.GONE),
 
-    /** OTP sai hoặc đã hết hạn. */
-    OTP_INVALID(1101, "Invalid or expired OTP", HttpStatus.BAD_REQUEST),
+    /** Session đã được approve trước đó — không thể approve lại. */
+    SESSION_ALREADY_APPROVED(1303, "Session already approved", HttpStatus.CONFLICT),
 
-    /** OTP đã nhập sai quá số lần cho phép. */
-    OTP_EXCEEDED_ATTEMPTS(1102, "OTP attempts exceeded", HttpStatus.TOO_MANY_REQUESTS),
+    // ──────────────────────────────────────────────────────────────
+    // 14xx — Sign Request (web ↔ mobile relay)
+    // ──────────────────────────────────────────────────────────────
 
-    /** OTP đã hết hạn (TTL). */
-    OTP_EXPIRED(1103, "OTP has expired", HttpStatus.BAD_REQUEST),
+    /** Sign request id không tìm thấy. */
+    SIGN_REQUEST_NOT_FOUND(1401, "Sign request not found", HttpStatus.NOT_FOUND),
 
-    /** Provider (google/apple/phone) không hợp lệ. */
-    AUTH_PROVIDER_INVALID(1201, "Invalid auth provider", HttpStatus.BAD_REQUEST),
+    /** Sign request đã quá TTL (120s). */
+    SIGN_REQUEST_EXPIRED(1402, "Sign request expired", HttpStatus.GONE),
 
-    /** Auth method chưa được xác minh — chưa nhập OTP. */
-    AUTH_METHOD_NOT_VERIFIED(1202, "Auth method not verified", HttpStatus.FORBIDDEN),
+    /** Chữ ký Hardware Key không hợp lệ. */
+    SIGNATURE_INVALID(1403, "Invalid signature", HttpStatus.FORBIDDEN),
 
     // ──────────────────────────────────────────────────────────────
     // 2xxx — User / DID
@@ -116,6 +118,12 @@ public enum ErrorCode {
 
     /** Sequence không đúng — có thể bị replay attack. */
     TAAD_SEQUENCE_MISMATCH(5005, "Sequence mismatch — possible replay attack", HttpStatus.BAD_REQUEST),
+
+    /** Tx submit Cardano fail (Blockfrost reject hoặc timeout confirm). */
+    CARDANO_TX_FAILED(5101, "Cardano transaction failed", HttpStatus.BAD_GATEWAY),
+
+    /** Resolve DID Document fail — tx hash không tìm thấy hoặc datum invalid. */
+    CARDANO_RESOLVE_FAILED(5102, "Failed to resolve DID Document on Cardano", HttpStatus.BAD_GATEWAY),
 
     // ──────────────────────────────────────────────────────────────
     // 9xxx — System errors

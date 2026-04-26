@@ -27,12 +27,9 @@ public class ActivityLogService {
     // Action constants
     // ──────────────────────────────────────────────────────────────
 
-    public static final String ACTION_OTP_SENT = "otp_sent";
-    public static final String ACTION_OTP_FAILED = "otp_failed";
     public static final String ACTION_LOGIN_SUCCESS = "login_success";
     public static final String ACTION_LOGIN_FAILED = "login_failed";
     public static final String ACTION_USER_REGISTERED = "user_registered";
-    public static final String ACTION_DID_UPDATED = "did_updated";
     public static final String ACTION_KEY_AUTHORIZED = "key_authorized";
     public static final String ACTION_KEY_REVOKED = "key_revoked";
     public static final String ACTION_KEY_ROTATED = "key_rotated";
@@ -40,6 +37,14 @@ public class ActivityLogService {
     public static final String ACTION_GUARDIAN_REMOVED = "guardian_removed";
     public static final String ACTION_RECOVERY_APPROVED = "recovery_approved";
     public static final String ACTION_TAAD_SYNCED = "taad_synced";
+    /** [V1.5+] Web QR pair approved bởi mobile. */
+    public static final String ACTION_WEB_SESSION_APPROVED = "web_session_approved";
+    /** [V1.5+] Sign request từ web được mobile approve. */
+    public static final String ACTION_SIGN_REQUEST_APPROVED = "sign_request_approved";
+    /** [V1.5+] Sign request bị mobile reject. */
+    public static final String ACTION_SIGN_REQUEST_REJECTED = "sign_request_rejected";
+    /** [V1.5+] User trích xuất Seed Phrase (spec §9). */
+    public static final String ACTION_SEED_PHRASE_EXPORTED = "seed_phrase_exported";
 
     // ──────────────────────────────────────────────────────────────
     // Log methods
