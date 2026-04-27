@@ -44,16 +44,24 @@ seed() {
     # ── Fee wallet mnemonic — idempotent (giữ ví đã fund tADA) ──
     # Format: space-separated BIP-39. Vault CLI lưu nguyên dưới dạng STRING.
     # App đọc qua VaultSecretService → split whitespace → String[] cho BloxBean.
+    #
+    # Source priority:
+    #   1. FEE_WALLET_MNEMONIC env (từ .env, dev-specific, gitignored)
+    #   2. Dummy test vector (23×abandon + art) — public, ai cũng spend được
     if vault kv get secret/phoenixkey/fee-wallet/mnemonic >/dev/null 2>&1; then
         echo "    fee-wallet/mnemonic: skip (đã có)"
     else
-        # DEV: standard test vector 24-word mnemonic — entropy = 0x00...00 (256 bit).
-        # Checksum word "art" = SHA-256(zeros)[0:8] mapped to BIP-39 index 102.
-        # KHÔNG được dùng cho prod — public test mnemonic, ai cũng spend được.
-        # PROD: tạo mnemonic mới, lưu HCP Vault, không commit vào git.
-        FEE_WALLET_WORDS="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art"
+        if [ -n "${FEE_WALLET_MNEMONIC:-}" ]; then
+            FEE_WALLET_WORDS="$FEE_WALLET_MNEMONIC"
+            SOURCE="env FEE_WALLET_MNEMONIC"
+        else
+            # DEV fallback: BIP-39 zero-entropy 24 từ. Checksum word "art".
+            # PROD: tạo mnemonic riêng (./tools/keygen wallet), lưu HCP Vault.
+            FEE_WALLET_WORDS="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art"
+            SOURCE="dummy test vector"
+        fi
         vault kv put secret/phoenixkey/fee-wallet/mnemonic words="$FEE_WALLET_WORDS" >/dev/null
-        echo "    fee-wallet/mnemonic: seeded (test vector, 23×abandon + art)"
+        echo "    fee-wallet/mnemonic: seeded ($SOURCE)"
     fi
 
     # ── JWT secret — random mỗi lần seed (dev only) ──

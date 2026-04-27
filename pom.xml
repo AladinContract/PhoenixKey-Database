@@ -224,6 +224,13 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <!-- exec-maven-plugin: chạy main class CLI dev (vd: KeypairGenCli) qua
+                 ./mvnw exec:java. Không ảnh hưởng prod build. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.4.1</version>
+            </plugin>
         </plugins>
     </build>
 

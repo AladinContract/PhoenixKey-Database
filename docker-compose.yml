@@ -148,6 +148,8 @@ services:
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: phoenixkey-dev-token
       BLOCKFROST_API_KEY: ${BLOCKFROST_API_KEY:-}
+      # Override dummy mnemonic — set trong .env để dùng wallet riêng (./tools/keygen wallet)
+      FEE_WALLET_MNEMONIC: ${FEE_WALLET_MNEMONIC:-}
     volumes:
       - ./infrastructure/vault/seed-dev.sh:/seed.sh:ro
     entrypoint: [ "sh", "/seed.sh" ]
