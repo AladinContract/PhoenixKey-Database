@@ -2,6 +2,7 @@ package com.magiclamp.phoenixkey_db.service.cardano;
 
 import com.bloxbean.cardano.client.api.model.Amount;
 import com.bloxbean.cardano.client.api.model.Result;
+import com.bloxbean.cardano.client.api.model.Utxo;
 import com.bloxbean.cardano.client.backend.api.BackendService;
 import com.bloxbean.cardano.client.backend.model.TxContentUtxo;
 import com.bloxbean.cardano.client.backend.model.TxContentUtxoOutputs;
@@ -47,6 +48,7 @@ public class CardanoServiceImpl implements CardanoService {
     private static final double GENESIS_ADA = 5.0;
 
     private static final String DID_PREFIX = "did:cardano:";
+    private static final String DID_PENDING_SUFFIX = ":pending";
 
     private final BackendService backendService;
     private final FeeWalletService feeWalletService;
@@ -57,7 +59,7 @@ public class CardanoServiceImpl implements CardanoService {
     public TxResult createDID(String publicKeyHex) {
         // 1. Build W3C DID Document. DID id = placeholder vì tx hash chưa biết —
         //    resolve() sẽ override id từ tx hash khi đọc lại.
-        String placeholderDid = DID_PREFIX + config.network() + ":pending";
+        String placeholderDid = DID_PREFIX + config.network() + DID_PENDING_SUFFIX;
         W3CDIDDocument doc = buildInitialDocument(placeholderDid, publicKeyHex);
 
         // 2. Serialize JSON → bytes → Plutus inline datum.
@@ -107,8 +109,96 @@ public class CardanoServiceImpl implements CardanoService {
 
     @Override
     public TxResult updateDID(String newPublicKeyHex, String previousTxHash, String oldControllerSignedTx) {
-        // TODO[Phase B.3c]: consume UTxO cũ + tạo UTxO mới với datum mới.
-        throw new UnsupportedOperationException("updateDID not implemented — see Phase B.3c");
+        // 1. Find old UTxO chứa DID Document tại previousTxHash. Cần Utxo object
+        //    đầy đủ (amount + datum) để collectFrom — scan unspent UTxOs ở address.
+        Utxo oldUtxo = findOldDIDUtxo(previousTxHash);
+
+        // 2. Build DID Document mới với key đã rotate. Genesis-style placeholder
+        //    DID — resolve() sẽ override bằng new tx hash.
+        String placeholderDid = DID_PREFIX + config.network() + DID_PENDING_SUFFIX;
+        W3CDIDDocument newDoc = buildInitialDocument(placeholderDid, newPublicKeyHex);
+        byte[] newDatumBytes;
+        try {
+            newDatumBytes = objectMapper.writeValueAsBytes(newDoc);
+        } catch (JsonProcessingException e) {
+            throw new AppException(ErrorCode.CARDANO_TX_FAILED,
+                    "Failed to serialize new DID Document: " + e.getMessage());
+        }
+        PlutusData newDatum = BytesPlutusData.of(newDatumBytes);
+
+        // 3. Tx: consume old UTxO + tạo new output (5 ADA + new datum). Fee +
+        //    extra ADA lấy từ fee wallet's other UTxOs (BloxBean tự coin-select
+        //    qua .from(address)).
+        // ⚠ MVP — fee wallet ký full tx. Vi phạm Zero-Trust spec §11 (đúng phải
+        //   yêu cầu old controller key sign như required signer). Phase H upgrade
+        //   yêu cầu mobile cung cấp partial-signed CBOR.
+        if (oldControllerSignedTx != null && !oldControllerSignedTx.isBlank()) {
+            log.warn("oldControllerSignedTx provided nhưng MVP chưa support — fee wallet ký");
+        }
+
+        String address = feeWalletService.address();
+        Tx tx = new Tx()
+                .collectFrom(List.of(oldUtxo))
+                .payToContract(address, Amount.ada(GENESIS_ADA), newDatum)
+                .from(address);
+
+        log.info("updateDID: rotating prev tx={} → new pubkey={}",
+                truncate(previousTxHash), truncate(newPublicKeyHex));
+        Result<String> result;
+        try {
+            result = new QuickTxBuilder(backendService)
+                    .compose(tx)
+                    .withSigner(SignerProviders.signerFrom(feeWalletService.account()))
+                    .completeAndWait(log::info);
+        } catch (Exception e) {
+            throw new AppException(ErrorCode.CARDANO_TX_FAILED,
+                    "updateDID submit failed: " + e.getMessage());
+        }
+        if (result == null || !result.isSuccessful()) {
+            throw new AppException(ErrorCode.CARDANO_TX_FAILED,
+                    "updateDID failed: " + (result == null ? "null result" : result.getResponse()));
+        }
+
+        String newTxHash = result.getValue();
+        String newDid = DID_PREFIX + config.network() + ":" + newTxHash;
+        log.info("updateDID: success — newTxHash={}, newDid={}", newTxHash, newDid);
+        return new TxResult(newTxHash, newDid, "UPDATE");
+    }
+
+    /**
+     * Fetch unspent UTxOs ở fee-wallet address, tìm UTxO khớp previousTxHash có
+     * inline datum (= UTxO chứa DID Document). Dùng cho updateDID consume.
+     *
+     * Pagination: lấy 100 UTxO mỗi page, scan tới khi tìm thấy hoặc hết. Nếu
+     * fee wallet có >100 UTxO và genesis ở page sau, sẽ chậm hơn nhưng vẫn ra.
+     */
+    private Utxo findOldDIDUtxo(String previousTxHash) {
+        String address = feeWalletService.address();
+        int page = 1;
+        while (page <= 50) { // safety cap: max 5000 UTxOs scanned
+            Result<List<Utxo>> walletUtxos;
+            try {
+                walletUtxos = backendService.getUtxoService().getUtxos(address, 100, page);
+            } catch (Exception e) {
+                throw new AppException(ErrorCode.CARDANO_RESOLVE_FAILED,
+                        "fetch wallet UTxOs failed: " + e.getMessage());
+            }
+            if (walletUtxos == null || !walletUtxos.isSuccessful() || walletUtxos.getValue() == null
+                    || walletUtxos.getValue().isEmpty()) {
+                break;
+            }
+            Optional<Utxo> match = walletUtxos.getValue().stream()
+                    .filter(u -> previousTxHash.equals(u.getTxHash()))
+                    .filter(u -> u.getInlineDatum() != null && !u.getInlineDatum().isBlank())
+                    .findFirst();
+            if (match.isPresent()) {
+                return match.get();
+            }
+            page++;
+        }
+        throw new AppException(ErrorCode.CARDANO_RESOLVE_FAILED,
+                "no unspent UTxO with inline datum at prev tx (đã rotate? hoặc tx chưa confirm?): "
+                        + previousTxHash);
     }
 
     @Override
@@ -285,6 +375,6 @@ public class CardanoServiceImpl implements CardanoService {
     }
 
     private static String replacePending(String s, String txHash) {
-        return s == null ? null : s.replace(":pending", ":" + txHash);
+        return s == null ? null : s.replace(DID_PENDING_SUFFIX, ":" + txHash);
     }
 }

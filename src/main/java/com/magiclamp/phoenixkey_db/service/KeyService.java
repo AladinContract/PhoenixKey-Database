@@ -2,10 +2,12 @@ package com.magiclamp.phoenixkey_db.service;
 
 import com.magiclamp.phoenixkey_db.dto.request.KeyAuthorizeRequest;
 import com.magiclamp.phoenixkey_db.dto.request.KeyRevokeRequest;
+import com.magiclamp.phoenixkey_db.dto.request.KeyRotateRequest;
 import com.magiclamp.phoenixkey_db.dto.response.KeyAuthorizeResponse;
+import com.magiclamp.phoenixkey_db.dto.response.KeyRotationResponse;
 
 /**
- * Service quản lý authorized keys — thêm và thu hồi thiết bị.
+ * Service quản lý authorized keys — thêm, thu hồi, xoay khóa thiết bị.
  */
 public interface KeyService {
 
@@ -25,4 +27,13 @@ public interface KeyService {
      * Zero-Trust: {@code signature} phải được verify trước khi revoke.
      */
     void revoke(KeyRevokeRequest request);
+
+    /**
+     * Xoay khóa: thay public key owner bằng key mới qua Cardano updateDID + cập
+     * nhật {@code authorized_keys} (revoke key cũ + insert key mới active).
+     *
+     * Spec §11. MVP: fee wallet ký Cardano tx (vi phạm Zero-Trust nhẹ — Phase H
+     * sẽ enforce old key sign như required signer).
+     */
+    KeyRotationResponse rotate(KeyRotateRequest request);
 }
