@@ -81,7 +81,10 @@ public class VaultSecretService {
     @PostConstruct
     void init() {
         if (vaultEnabled) {
-            log.info("VaultSecretService: loading secrets from Vault at {}", vaultUri);
+            log.info("VaultSecretService: loading secrets from Vault uri={}, tokenPrefix={}, namespace='{}'",
+                    vaultUri,
+                    vaultToken.length() > 8 ? vaultToken.substring(0, 6) + "..." : "(short)",
+                    vaultNamespace);
             this.feeWalletMnemonic = loadFeeWalletMnemonicFromVault();
             this.jwtSecret = loadJwtSecretFromVault();
         } else {
@@ -149,9 +152,9 @@ public class VaultSecretService {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> readKvV2(String kvPath) {
+        String url = vaultUri + "/v1/secret/data/" + kvPath;
         try {
             HttpEntity<Void> entity = new HttpEntity<>(buildAuthHeaders());
-            String url = vaultUri + "/v1/secret/data/" + kvPath;
             ResponseEntity<String> response = restTemplate.exchange(
                     url, HttpMethod.GET, entity, String.class);
             JsonNode root = objectMapper.readTree(response.getBody());
@@ -165,7 +168,7 @@ public class VaultSecretService {
             throw e;
         } catch (Exception e) {
             throw new IllegalStateException(
-                    "Failed to read Vault path '" + kvPath + "': " + e.getMessage(), e);
+                    "Failed to GET " + url + ": " + e.getMessage(), e);
         }
     }
 

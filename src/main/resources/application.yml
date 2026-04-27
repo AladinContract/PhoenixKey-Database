@@ -29,6 +29,19 @@ spring:
     baseline-on-migrate: false
     validate-on-migrate: true
 
+  # ──────────────────────────────────────────────────────────
+  # DevTools — hot reload (chỉ active khi chạy từ IDE / mvn spring-boot:run)
+  # Tự bị disable khi chạy từ JAR/Docker production
+  # ──────────────────────────────────────────────────────────
+  devtools:
+    restart:
+      enabled: true
+      poll-interval: 2s
+      quiet-period: 1s
+    livereload:
+      enabled: true
+      port: 35729
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}

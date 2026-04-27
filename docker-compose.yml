@@ -1,5 +1,3 @@
-version: "3.9"
-
 # ============================================================
 # PhoenixKey-Server — Local infra stack (postgres + redis + vault)
 #
@@ -96,6 +94,10 @@ services:
   # ──────────────────────────────────────────────────────────
   # HashiCorp Vault — KMS dev mode (chỉ dùng local)
   #
+  # ⚠ Storage: inmem — RESTART CONTAINER = MẤT TOÀN BỘ SECRETS.
+  #   Sau mỗi `docker compose up --force-recreate vault` hoặc reboot máy,
+  #   chạy lại: bash infrastructure/vault/seed-dev.sh
+  #
   # Layout chuẩn (KV v2 mounted at `secret/`):
   #   secret/phoenixkey/fee-wallet/mnemonic   { "words": [...] }
   #   secret/phoenixkey/jwt/secret            { "key": "<base64>" }
@@ -118,14 +120,38 @@ services:
     ports:
       - "127.0.0.1:${VAULT_PORT:-8200}:8200"
     healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:8200/v1/sys/health || exit 1" ]
+      # vault CLI có sẵn (image entrypoint). Exit 0 = initialized + unsealed.
+      # wget không có trong image alpine slim này.
+      test: [ "CMD-SHELL", "VAULT_ADDR=http://localhost:8200 vault status > /dev/null 2>&1" ]
       interval: 10s
       timeout: 3s
       retries: 5
+      start_period: 5s
     deploy:
       resources:
         limits:
           memory: 256M
+    logging: *default-logging
+
+  # ──────────────────────────────────────────────────────────
+  # Vault auto-seeder watchdog — chạy daemon, poll mỗi 30s.
+  # Tự re-seed nếu vault inmem bị wipe (container restart, laptop sleep, v.v).
+  # Fee-wallet mnemonic idempotent: giữ nguyên giữa các lần seed (ví không đổi).
+  # ──────────────────────────────────────────────────────────
+  vault-seed:
+    image: hashicorp/vault:1.17
+    container_name: phoenixkey-db-vault-seed
+    depends_on:
+      vault:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: phoenixkey-dev-token
+      BLOCKFROST_API_KEY: ${BLOCKFROST_API_KEY:-}
+    volumes:
+      - ./infrastructure/vault/seed-dev.sh:/seed.sh:ro
+    entrypoint: [ "sh", "/seed.sh" ]
+    restart: unless-stopped
     logging: *default-logging
   # ──────────────────────────────────────────────────────────
   # Spring Boot App — PhoenixKey-Server
