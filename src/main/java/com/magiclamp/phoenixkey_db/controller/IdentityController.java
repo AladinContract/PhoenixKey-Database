@@ -17,6 +17,8 @@ import com.magiclamp.phoenixkey_db.dto.response.IdentityPubkeyResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityRegisterResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityStatusResponse;
 import com.magiclamp.phoenixkey_db.service.IdentityService;
+import com.magiclamp.phoenixkey_db.service.cardano.CardanoService;
+import com.magiclamp.phoenixkey_db.service.cardano.dto.W3CDIDDocument;
 
 import lombok.RequiredArgsConstructor;
 
@@ -32,6 +34,7 @@ import lombok.RequiredArgsConstructor;
 public class IdentityController {
 
     private final IdentityService identityService;
+    private final CardanoService cardanoService;
 
     /**
      * Đăng ký identity mới — 1-step.
@@ -113,6 +116,38 @@ public class IdentityController {
                         .code(1000)
                         .message("Status retrieved")
                         .result(result)
+                        .build());
+    }
+
+    /**
+     * Resolve W3C DID Document từ Cardano. Đọc trực tiếp inline datum của tx hash
+     * trong DID string — Cardano là SSoT, không qua cache PostgreSQL.
+     */
+    @Operation(summary = "Resolve W3C DID Document từ Cardano", description = """
+            Trả về W3C DID Document đầy đủ được lưu trên Cardano.
+
+            **Flow:**
+            1. Parse tx hash từ DID string (`did:cardano:<network>:<txHash>`)
+            2. Fetch tx outputs qua Blockfrost
+            3. Tìm output có inline datum, decode CBOR → JSON → W3CDIDDocument
+            """)
+    @ApiResponse(responseCode = "200", description = "DID Document", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    @ApiResponse(responseCode = "502", description = "Cardano resolve failed (tx not found / datum invalid)", content = @Content)
+    @GetMapping("/{did}/document")
+    public ResponseEntity<DataResponse<W3CDIDDocument>> getDocument(
+            @Parameter(description = "DID của user", example = "did:cardano:preprod:2abfe200...") @PathVariable("did") String userDid) {
+        // Extract tx hash từ DID — pattern: did:cardano:<network>:<txHash>
+        String[] parts = userDid.split(":");
+        if (parts.length != 4) {
+            throw new IllegalArgumentException("Invalid DID format: " + userDid);
+        }
+        String txHash = parts[3];
+        W3CDIDDocument doc = cardanoService.resolve(txHash);
+        return ResponseEntity.ok(
+                DataResponse.<W3CDIDDocument>builder()
+                        .code(1000)
+                        .message("DID Document resolved")
+                        .result(doc)
                         .build());
     }
 }

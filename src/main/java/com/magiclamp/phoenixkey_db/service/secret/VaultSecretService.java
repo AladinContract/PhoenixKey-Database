@@ -216,8 +216,15 @@ public class VaultSecretService {
 
             long ttlSeconds = objectMapper.readTree(resp.getBody())
                     .path("data").path("ttl").asLong();
-            long hoursLeft = ttlSeconds / 3600;
 
+            // ttl=0 → token vĩnh viễn (Vault dev mode root token, hoặc periodic
+            // token với root policy). Không cần renew.
+            if (ttlSeconds == 0) {
+                log.debug("Vault token TTL=0 (infinite, root/periodic token) — skip renew");
+                return;
+            }
+
+            long hoursLeft = ttlSeconds / 3600;
             if (hoursLeft < 168) {
                 log.warn("Vault token TTL low: {}h left → auto-renewing", hoursLeft);
                 renewToken();

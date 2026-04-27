@@ -12,4 +12,10 @@ public class AppException extends RuntimeException {
         super(errorCode.getMessage());
         this.errorCode = errorCode;
     }
+
+    /** Custom detail message (vd: kèm tx hash, Cardano error...) ngoài generic message của ErrorCode. */
+    public AppException(ErrorCode errorCode, String detail) {
+        super(errorCode.getMessage() + " — " + detail);
+        this.errorCode = errorCode;
+    }
 }

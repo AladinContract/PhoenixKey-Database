@@ -39,8 +39,8 @@ public class FeeWalletService {
             log.warn("Fee wallet mnemonic length={} không phải BIP-39 chuẩn (12/15/24)", mnemonic.length);
         }
         this.account = new Account(network, String.join(" ", mnemonic));
-        log.info("FeeWalletService initialized: address={}",
-                truncateAddress(account.baseAddress()));
+        // Address là public on-chain — log full để dev tiện fund từ faucet.
+        log.info("FeeWalletService initialized: address={}", account.baseAddress());
     }
 
     /** Bech32 address dùng nhận tADA + làm change/registry address. */
@@ -51,12 +51,5 @@ public class FeeWalletService {
     /** {@link Account} object để dùng trong tx builder ({@code .sign(account)}). */
     public Account account() {
         return account;
-    }
-
-    private static String truncateAddress(String addr) {
-        if (addr == null || addr.length() < 20) {
-            return addr;
-        }
-        return addr.substring(0, 12) + "..." + addr.substring(addr.length() - 8);
     }
 }

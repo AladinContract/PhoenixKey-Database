@@ -1,10 +1,15 @@
 package com.magiclamp.phoenixkey_db.service.impl;
 
+import java.time.OffsetDateTime;
+import java.util.Map;
+import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.magiclamp.phoenixkey_db.common.UuidGenerator;
 import com.magiclamp.phoenixkey_db.domain.AuthorizedKey;
+import com.magiclamp.phoenixkey_db.domain.User;
 import com.magiclamp.phoenixkey_db.dto.request.IdentityRegisterRequest;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityPubkeyResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityRegisterResponse;
@@ -16,6 +21,8 @@ import com.magiclamp.phoenixkey_db.repository.OnchainTaadStateCacheRepository;
 import com.magiclamp.phoenixkey_db.repository.UserRepository;
 import com.magiclamp.phoenixkey_db.service.ActivityLogService;
 import com.magiclamp.phoenixkey_db.service.IdentityService;
+import com.magiclamp.phoenixkey_db.service.cardano.CardanoService;
+import com.magiclamp.phoenixkey_db.service.cardano.dto.TxResult;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,15 +32,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class IdentityServiceImpl implements IdentityService {
 
-    @SuppressWarnings("unused") // wired in Phase C khi register() có body thật
     private final UserRepository userRepository;
     private final AuthorizedKeyRepository authorizedKeyRepository;
     private final OnchainTaadStateCacheRepository taadCacheRepository;
-    @SuppressWarnings("unused")
     private final ActivityLogService activityLogService;
-    @SuppressWarnings("unused")
     private final UuidGenerator uuidGenerator;
-    // Phase B sẽ wire SignatureService + CardanoService vào đây.
+    private final CardanoService cardanoService;
+    // Phase B.4 sẽ wire SignatureService — verify Genesis signature trước createDID.
 
     // ──────────────────────────────────────────────────────────────
     // Register
@@ -42,16 +47,41 @@ public class IdentityServiceImpl implements IdentityService {
     @Override
     @Transactional
     public IdentityRegisterResponse register(IdentityRegisterRequest request) {
-        // TODO[Phase C]: implement đầy đủ sau khi Phase B có CardanoService + SignatureService.
-        // Flow:
-        //   1. signatureService.verifyEcdsa(publicKeyHex, "PHOENIXKEY_GENESIS:" + publicKeyHex, addedBySignature)
-        //   2. tx = cardanoService.createDID(publicKeyHex)
-        //   3. INSERT users + authorized_keys với userDid = tx.did()
-        //   4. activityLogService.log(USER_REGISTERED)
-        //   5. return new IdentityRegisterResponse(userId, userDid, tx.txHash())
-        log.warn("IdentityService.register() called but Phase B/C not done yet — request={}", request);
-        throw new UnsupportedOperationException(
-                "register() not implemented in Phase A — see Phase B (Cardano integration) + Phase C");
+        // TODO[Phase B.4]: verify addedBySignature qua SignatureService trước khi
+        // chi ADA submit tx. Hiện tại trust client → SECURITY HOLE, chỉ dùng để
+        // smoke-test Cardano integration.
+        log.warn("Skipping Genesis signature verify (Phase B.4 chưa làm)");
+
+        // Publish DID lên Cardano. CardanoService throw AppException(CARDANO_TX_FAILED)
+        // nếu submit/confirm fail — không rollback DB vì chưa insert.
+        TxResult tx = cardanoService.createDID(request.publicKeyHex());
+        String userDid = tx.did();
+
+        // Insert user + owner key trong cùng transaction.
+        UUID userId = uuidGenerator.create();
+        User user = User.builder()
+                .id(userId)
+                .userDid(userDid)
+                .createdAt(OffsetDateTime.now())
+                .build();
+        userRepository.save(user);
+
+        AuthorizedKey ownerKey = AuthorizedKey.builder()
+                .id(uuidGenerator.create())
+                .userDid(userDid)
+                .publicKeyHex(request.publicKeyHex())
+                .keyOrigin(request.keyOrigin())
+                .keyRole(request.keyRole())
+                .addedBySignature(request.addedBySignature())
+                .status("active")
+                .createdAt(OffsetDateTime.now())
+                .build();
+        authorizedKeyRepository.save(ownerKey);
+
+        activityLogService.log(userId, ActivityLogService.ACTION_USER_REGISTERED,
+                Map.of("did", userDid, "tx_hash", tx.txHash()));
+
+        return new IdentityRegisterResponse(userId.toString(), userDid, tx.txHash());
     }
 
     // ──────────────────────────────────────────────────────────────
