@@ -12,13 +12,19 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Service quản lý Redis cache cho Session + Rate Limit.
+ * Service quản lý Redis cache cho Session + Sign-Request + Rate Limit.
  *
- * Hai mục đích chính:
- * - {@code session:token:{jwt_hash}} — Phiên đăng nhập web, TTL 24 giờ
- * - {@code ratelimit:ip:{ip_hash}} — Đếm request/IP, TTL 1 giờ
+ * Key layout (xem PLAN-Server.md Phase D.4):
+ * <ul>
+ *   <li>{@code session:token:{jwt_hash}} — Legacy session (sẽ deprecate sau Phase D)</li>
+ *   <li>{@code session:init:{sessionId}} — QR pairing state (challenge + status), TTL 5 phút</li>
+ *   <li>{@code session:approved:{sessionId}} — Session token + linked-device sau khi mobile approve, TTL 24h</li>
+ *   <li>{@code sign-req:{requestId}} — Sign request payload + signature, TTL 120s</li>
+ *   <li>{@code linked-device:{token}} → userDid, TTL 30 ngày</li>
+ *   <li>{@code ratelimit:ip:{ip_hash}} — Đếm request/IP, TTL 1 giờ</li>
+ * </ul>
  *
- * Phase D sẽ thêm: {@code session:init:*}, {@code sign-req:*}, {@code linked-device:*}.
+ * Value format: JSON string (services serialize/deserialize qua ObjectMapper).
  */
 @Service
 @RequiredArgsConstructor
@@ -35,6 +41,10 @@ public class RedisService {
 
     private static final String RATE_LIMIT_PREFIX = "ratelimit:ip:";
     private static final String SESSION_PREFIX = "session:token:";
+    private static final String SESSION_INIT_PREFIX = "session:init:";
+    private static final String SESSION_APPROVED_PREFIX = "session:approved:";
+    private static final String SIGN_REQ_PREFIX = "sign-req:";
+    private static final String LINKED_DEVICE_PREFIX = "linked-device:";
 
     // ──────────────────────────────────────────────────────────────
     // Session
@@ -112,5 +122,65 @@ public class RedisService {
             return false;
         }
         return Long.parseLong(val) > maxRequest;
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Phase D — QR pairing session state (init/approved)
+    // ──────────────────────────────────────────────────────────────
+
+    /** session:init:{sessionId} — challenge + temp_token state, TTL 5 phút. */
+    public void saveSessionInit(String sessionId, String json, Duration ttl) {
+        redisTemplate.opsForValue().set(SESSION_INIT_PREFIX + sessionId, json, ttl);
+    }
+
+    public Optional<String> getSessionInit(String sessionId) {
+        return Optional.ofNullable(redisTemplate.opsForValue().get(SESSION_INIT_PREFIX + sessionId));
+    }
+
+    public void deleteSessionInit(String sessionId) {
+        redisTemplate.delete(SESSION_INIT_PREFIX + sessionId);
+    }
+
+    /** session:approved:{sessionId} — session_token + linkedDeviceToken sau approve, TTL 24h. */
+    public void saveSessionApproved(String sessionId, String json, Duration ttl) {
+        redisTemplate.opsForValue().set(SESSION_APPROVED_PREFIX + sessionId, json, ttl);
+    }
+
+    public Optional<String> getSessionApproved(String sessionId) {
+        return Optional.ofNullable(redisTemplate.opsForValue().get(SESSION_APPROVED_PREFIX + sessionId));
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Phase D — Sign request relay
+    // ──────────────────────────────────────────────────────────────
+
+    /** sign-req:{requestId} — intent + payload + status, TTL 120s. */
+    public void saveSignRequest(String requestId, String json, Duration ttl) {
+        redisTemplate.opsForValue().set(SIGN_REQ_PREFIX + requestId, json, ttl);
+    }
+
+    public Optional<String> getSignRequest(String requestId) {
+        return Optional.ofNullable(redisTemplate.opsForValue().get(SIGN_REQ_PREFIX + requestId));
+    }
+
+    public void deleteSignRequest(String requestId) {
+        redisTemplate.delete(SIGN_REQ_PREFIX + requestId);
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Phase D — Linked-device token mapping
+    // ──────────────────────────────────────────────────────────────
+
+    /** linked-device:{token} → userDid, TTL 30 ngày. */
+    public void saveLinkedDevice(String token, String userDid, Duration ttl) {
+        redisTemplate.opsForValue().set(LINKED_DEVICE_PREFIX + token, userDid, ttl);
+    }
+
+    public Optional<String> getLinkedDevice(String token) {
+        return Optional.ofNullable(redisTemplate.opsForValue().get(LINKED_DEVICE_PREFIX + token));
+    }
+
+    public void deleteLinkedDevice(String token) {
+        redisTemplate.delete(LINKED_DEVICE_PREFIX + token);
     }
 }

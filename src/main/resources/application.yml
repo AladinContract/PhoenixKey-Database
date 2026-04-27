@@ -78,6 +78,9 @@ spring:
 #   FEE_WALLET_MNEMONIC, PHOENIXKEY_JWT_SECRET
 # ──────────────────────────────────────────────────────────
 phoenixkey:
+  cors:
+    # Comma-separated list. Override qua env CORS_ALLOWED_ORIGINS.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,https://phoenixkey.me,https://staging.phoenixkey.me}
   session:
     ttl-seconds: 86400
   challenge:
