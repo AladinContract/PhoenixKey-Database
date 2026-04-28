@@ -15,10 +15,16 @@ import com.magiclamp.phoenixkey_db.common.DataResponse;
 import com.magiclamp.phoenixkey_db.dto.request.IdentityRegisterRequest;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityPubkeyResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityRegisterResponse;
+import com.magiclamp.phoenixkey_db.dto.response.IdentityHealthResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityStatusResponse;
+import com.magiclamp.phoenixkey_db.exception.AppException;
+import com.magiclamp.phoenixkey_db.exception.ErrorCode;
+import com.magiclamp.phoenixkey_db.security.JwtService;
+import com.magiclamp.phoenixkey_db.security.JwtServiceImpl;
 import com.magiclamp.phoenixkey_db.service.IdentityService;
 import com.magiclamp.phoenixkey_db.service.cardano.CardanoService;
 import com.magiclamp.phoenixkey_db.service.cardano.dto.W3CDIDDocument;
+import io.jsonwebtoken.Claims;
 
 import lombok.RequiredArgsConstructor;
 
@@ -35,6 +41,7 @@ public class IdentityController {
 
     private final IdentityService identityService;
     private final CardanoService cardanoService;
+    private final JwtService jwtService;
 
     /**
      * Đăng ký identity mới — 1-step.
@@ -149,5 +156,46 @@ public class IdentityController {
                         .message("DID Document resolved")
                         .result(doc)
                         .build());
+    }
+
+    /**
+     * Health snapshot cho dashboard banner (spec §9.5).
+     *
+     * <p>Bearer session_token bắt buộc — endpoint trích userDid từ token (sub
+     * claim). Không nhận did qua path/query để tránh user A xem health của user B.</p>
+     */
+    @Operation(summary = "Identity health (spec §9.5)", description = """
+            Trả về { seedExported, exportedAt, activeKeyCount, guardianCount }.
+            Web dùng để render banner trạng thái + gợi ý setup guardian/rotate key.
+
+            **Bearer:** session_token (24h TTL).
+            """)
+    @ApiResponse(responseCode = "200", description = "Health snapshot", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    @ApiResponse(responseCode = "403", description = "Invalid session token", content = @Content)
+    @ApiResponse(responseCode = "404", description = "User trong token không tồn tại", content = @Content)
+    @GetMapping("/health")
+    public ResponseEntity<DataResponse<IdentityHealthResponse>> getHealth(
+            @RequestHeader("Authorization") String authorization) {
+        String userDid = userDidFromBearer(authorization);
+        IdentityHealthResponse result = identityService.getHealth(userDid);
+        return ResponseEntity.ok(
+                DataResponse.<IdentityHealthResponse>builder()
+                        .code(1000)
+                        .message("Health retrieved")
+                        .result(result)
+                        .build());
+    }
+
+    /** Parse Bearer header → verify session JWT → return userDid (sub claim). */
+    private String userDidFromBearer(String authorization) {
+        if (authorization == null || !authorization.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            throw new AppException(ErrorCode.SIGNATURE_INVALID, "missing or invalid Bearer header");
+        }
+        String token = authorization.substring(7).trim();
+        Claims claims = jwtService.parseAndVerify(token);
+        if (!JwtServiceImpl.TYPE_SESSION.equals(claims.get("type", String.class))) {
+            throw new AppException(ErrorCode.SIGNATURE_INVALID, "not a session token");
+        }
+        return claims.getSubject();
     }
 }

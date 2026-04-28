@@ -144,4 +144,34 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, UUID> 
     long countRecentFailedLogins(
             @Param("ipHash") String ipHash,
             @Param("since") OffsetDateTime since);
+
+    // ──────────────────────────────────────────────────────────────
+    // Phase E — Cursor pagination cho dashboard activity feed
+    // ──────────────────────────────────────────────────────────────
+
+    /**
+     * Cursor-paginated query cho dashboard: filter theo action + range thời gian.
+     *
+     * <p>UUIDv7 timestamp-prefixed → DESC sort cho newest first. Cursor là
+     * UUID của last item trang trước → {@code id < cursor} lấy older items.</p>
+     *
+     * @param userId UUID user (filter chính, chỉ trả log của user này)
+     * @param filter action name (vd "login_success") hoặc null = tất cả
+     * @param since  threshold createdAt (vd NOW - 7 days) hoặc null = tất cả
+     * @param cursor last UUID đã thấy hoặc null = trang đầu
+     */
+    @Query("""
+            SELECT a FROM ActivityLog a
+            WHERE a.userId = :userId
+              AND (:filter IS NULL OR a.action = :filter)
+              AND (:since IS NULL OR a.createdAt >= :since)
+              AND (:cursor IS NULL OR a.id < :cursor)
+            ORDER BY a.id DESC
+            """)
+    List<ActivityLog> queryPage(
+            @Param("userId") UUID userId,
+            @Param("filter") String filter,
+            @Param("since") OffsetDateTime since,
+            @Param("cursor") UUID cursor,
+            Pageable pageable);
 }

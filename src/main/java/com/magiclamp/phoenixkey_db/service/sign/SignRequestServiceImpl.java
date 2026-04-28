@@ -12,6 +12,7 @@ import com.magiclamp.phoenixkey_db.dto.sign.SignRequestPayload;
 import com.magiclamp.phoenixkey_db.exception.AppException;
 import com.magiclamp.phoenixkey_db.exception.ErrorCode;
 import com.magiclamp.phoenixkey_db.repository.AuthorizedKeyRepository;
+import com.magiclamp.phoenixkey_db.repository.UserRepository;
 import com.magiclamp.phoenixkey_db.security.JwtService;
 import com.magiclamp.phoenixkey_db.security.JwtServiceImpl;
 import com.magiclamp.phoenixkey_db.service.ActivityLogService;
@@ -46,6 +47,7 @@ public class SignRequestServiceImpl implements SignRequestService {
     private final SseEmitterRegistry sseRegistry;
     private final UuidGenerator uuidGenerator;
     private final AuthorizedKeyRepository authorizedKeyRepository;
+    private final UserRepository userRepository;
     private final NonceService nonceService;
     private final ActivityLogService activityLogService;
     private final PushService pushService;
@@ -59,7 +61,7 @@ public class SignRequestServiceImpl implements SignRequestService {
     @Value("${phoenixkey.sign-request.ttl-seconds:120}")
     private int signRequestTtlSeconds;
 
-    @SuppressWarnings("java:S107") // 10 deps — service orchestrate nhiều layer là expected
+    @SuppressWarnings("java:S107") // 11 deps — service orchestrate nhiều layer là expected
     public SignRequestServiceImpl(
             RedisService redisService,
             JwtService jwtService,
@@ -67,6 +69,7 @@ public class SignRequestServiceImpl implements SignRequestService {
             SseEmitterRegistry sseRegistry,
             UuidGenerator uuidGenerator,
             AuthorizedKeyRepository authorizedKeyRepository,
+            UserRepository userRepository,
             NonceService nonceService,
             ActivityLogService activityLogService,
             PushService pushService,
@@ -77,6 +80,7 @@ public class SignRequestServiceImpl implements SignRequestService {
         this.sseRegistry = sseRegistry;
         this.uuidGenerator = uuidGenerator;
         this.authorizedKeyRepository = authorizedKeyRepository;
+        this.userRepository = userRepository;
         this.nonceService = nonceService;
         this.activityLogService = activityLogService;
         this.pushService = pushService;
@@ -185,6 +189,18 @@ public class SignRequestServiceImpl implements SignRequestService {
         activityLogService.log(null, ActivityLogService.ACTION_SIGN_REQUEST_APPROVED,
                 Map.of("user_did", payload.userDid(), "request_id", requestId,
                         "intent_type", payload.intent().type()));
+
+        // Side-effect SEED_EXPORT: ghi users.seed_exported_at = NOW() (spec §9.5)
+        // → dashboard banner cảnh báo bảo mật giảm cho đến khi user xoay khóa.
+        if ("SEED_EXPORT".equals(payload.intent().type())) {
+            userRepository.findByUserDid(payload.userDid()).ifPresent(user -> {
+                user.setSeedExportedAt(java.time.OffsetDateTime.now());
+                userRepository.save(user);
+                activityLogService.log(user.getId(),
+                        ActivityLogService.ACTION_SEED_PHRASE_EXPORTED,
+                        Map.of("request_id", requestId));
+            });
+        }
     }
 
     // ──────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 package com.magiclamp.phoenixkey_db.service;
 
 import com.magiclamp.phoenixkey_db.dto.request.IdentityRegisterRequest;
+import com.magiclamp.phoenixkey_db.dto.response.IdentityHealthResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityPubkeyResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityRegisterResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityStatusResponse;
@@ -38,4 +39,12 @@ public interface IdentityService {
      * @return status, controller PKH, sequence, deadline
      */
     IdentityStatusResponse getStatus(String userDid);
+
+    /**
+     * Health snapshot cho dashboard banner (spec §9.5).
+     *
+     * @param userDid DID string từ session_token
+     * @return seedExported + activeKeyCount + guardianCount
+     */
+    IdentityHealthResponse getHealth(String userDid);
 }

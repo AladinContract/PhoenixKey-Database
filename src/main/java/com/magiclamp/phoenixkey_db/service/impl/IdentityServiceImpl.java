@@ -11,12 +11,14 @@ import com.magiclamp.phoenixkey_db.common.UuidGenerator;
 import com.magiclamp.phoenixkey_db.domain.AuthorizedKey;
 import com.magiclamp.phoenixkey_db.domain.User;
 import com.magiclamp.phoenixkey_db.dto.request.IdentityRegisterRequest;
+import com.magiclamp.phoenixkey_db.dto.response.IdentityHealthResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityPubkeyResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityRegisterResponse;
 import com.magiclamp.phoenixkey_db.dto.response.IdentityStatusResponse;
 import com.magiclamp.phoenixkey_db.exception.AppException;
 import com.magiclamp.phoenixkey_db.exception.ErrorCode;
 import com.magiclamp.phoenixkey_db.repository.AuthorizedKeyRepository;
+import com.magiclamp.phoenixkey_db.repository.GuardianRepository;
 import com.magiclamp.phoenixkey_db.repository.OnchainTaadStateCacheRepository;
 import com.magiclamp.phoenixkey_db.repository.UserRepository;
 import com.magiclamp.phoenixkey_db.service.ActivityLogService;
@@ -36,6 +38,7 @@ public class IdentityServiceImpl implements IdentityService {
     private final UserRepository userRepository;
     private final AuthorizedKeyRepository authorizedKeyRepository;
     private final OnchainTaadStateCacheRepository taadCacheRepository;
+    private final GuardianRepository guardianRepository;
     private final ActivityLogService activityLogService;
     private final UuidGenerator uuidGenerator;
     private final CardanoService cardanoService;
@@ -125,6 +128,24 @@ public class IdentityServiceImpl implements IdentityService {
                                 ? cache.getRecoveryDeadline().toString()
                                 : null))
                 .orElseThrow(() -> new AppException(ErrorCode.TAAD_STATE_NOT_FOUND));
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // Get Health (spec §9.5)
+    // ──────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional(readOnly = true)
+    public IdentityHealthResponse getHealth(String userDid) {
+        User user = userRepository.findByUserDid(userDid)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_DID_NOT_FOUND));
+
+        boolean seedExported = user.getSeedExportedAt() != null;
+        String exportedAt = seedExported ? user.getSeedExportedAt().toString() : null;
+        long activeKeyCount = authorizedKeyRepository.countActiveByUserDid(userDid);
+        long guardianCount = guardianRepository.countActiveByUserId(user.getId());
+
+        return new IdentityHealthResponse(seedExported, exportedAt, activeKeyCount, guardianCount);
     }
 
     // ──────────────────────────────────────────────────────────────
