@@ -18,13 +18,13 @@ import com.magiclamp.phoenixkey_db.service.ActivityLogService;
 import com.magiclamp.phoenixkey_db.service.NonceService;
 import com.magiclamp.phoenixkey_db.service.RedisService;
 import com.magiclamp.phoenixkey_db.service.crypto.SignatureService;
+import com.magiclamp.phoenixkey_db.service.push.PushService;
 import com.magiclamp.phoenixkey_db.service.session.SseEmitterRegistry;
 import io.jsonwebtoken.Claims;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -48,6 +48,7 @@ public class SignRequestServiceImpl implements SignRequestService {
     private final AuthorizedKeyRepository authorizedKeyRepository;
     private final NonceService nonceService;
     private final ActivityLogService activityLogService;
+    private final PushService pushService;
 
     /**
      * Canonical ObjectMapper — keys sorted alphabetically, no indent. Mobile và
@@ -58,7 +59,7 @@ public class SignRequestServiceImpl implements SignRequestService {
     @Value("${phoenixkey.sign-request.ttl-seconds:120}")
     private int signRequestTtlSeconds;
 
-    @SuppressWarnings("java:S107") // 9 deps — service orchestrate nhiều layer là expected
+    @SuppressWarnings("java:S107") // 10 deps — service orchestrate nhiều layer là expected
     public SignRequestServiceImpl(
             RedisService redisService,
             JwtService jwtService,
@@ -68,6 +69,7 @@ public class SignRequestServiceImpl implements SignRequestService {
             AuthorizedKeyRepository authorizedKeyRepository,
             NonceService nonceService,
             ActivityLogService activityLogService,
+            PushService pushService,
             ObjectMapper objectMapper) {
         this.redisService = redisService;
         this.jwtService = jwtService;
@@ -77,6 +79,7 @@ public class SignRequestServiceImpl implements SignRequestService {
         this.authorizedKeyRepository = authorizedKeyRepository;
         this.nonceService = nonceService;
         this.activityLogService = activityLogService;
+        this.pushService = pushService;
         // Copy ObjectMapper rồi enable sort keys — không ảnh hưởng global mapper.
         this.canonicalMapper = objectMapper.copy()
                 .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
@@ -104,8 +107,15 @@ public class SignRequestServiceImpl implements SignRequestService {
 
         redisService.saveSignRequest(requestId, toJson(payload), ttl);
 
-        // Phase D.4 sẽ wire pushService.notifySignRequest(userDid, requestId).
-        // Hiện stub — mobile phải poll GET /sign/request/{id} để biết có request.
+        // Push notification — stub log nếu chưa wire FCM/APNs (Phase D.4).
+        // SEED_EXPORT là special intent, dùng channel push riêng cho UX cảnh báo
+        // mạnh hơn (xem spec §9.2).
+        if ("SEED_EXPORT".equals(request.intent().type())) {
+            pushService.notifySeedExportRequest(userDid, requestId);
+        } else {
+            pushService.notifySignRequest(userDid, requestId);
+        }
+
         log.info("SignRequest created: id={}, userDid={}, intent.type={}, sid={}",
                 requestId, userDid, request.intent().type(), request.sessionId());
 

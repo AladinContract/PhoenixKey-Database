@@ -15,6 +15,7 @@ import com.magiclamp.phoenixkey_db.security.JwtServiceImpl;
 import com.magiclamp.phoenixkey_db.service.ActivityLogService;
 import com.magiclamp.phoenixkey_db.service.RedisService;
 import com.magiclamp.phoenixkey_db.service.crypto.SignatureService;
+import com.magiclamp.phoenixkey_db.service.push.PushService;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,7 @@ public class SessionServiceImpl implements SessionService {
     private final UuidGenerator uuidGenerator;
     private final AuthorizedKeyRepository authorizedKeyRepository;
     private final ActivityLogService activityLogService;
+    private final PushService pushService;
     private final ObjectMapper objectMapper;
 
     @Value("${phoenixkey.challenge.ttl-seconds:300}")
@@ -202,10 +204,7 @@ public class SessionServiceImpl implements SessionService {
         // Verify session vẫn pending (web đã init trước khi gọi push).
         loadInitState(sessionId); // throws nếu không tồn tại
 
-        // Phase D.4 sẽ inject PushService và gọi notifySessionApproval(userDid, sessionId).
-        // Hiện tại stub — log để dev test luồng từ web mà không cần FCM/APNs creds.
-        log.warn("Push to linked device: userDid={}, sid={} — FCM/APNs chưa wire (Phase D.4)",
-                userDid, sessionId);
+        pushService.notifySessionApproval(userDid, sessionId);
     }
 
     // ──────────────────────────────────────────────────────────────
