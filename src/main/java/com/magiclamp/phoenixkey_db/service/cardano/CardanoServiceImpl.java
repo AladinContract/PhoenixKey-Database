@@ -22,6 +22,8 @@ import com.magiclamp.phoenixkey_db.service.cardano.dto.W3CVerificationMethod;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -201,7 +203,16 @@ public class CardanoServiceImpl implements CardanoService {
                         + previousTxHash);
     }
 
+    /**
+     * Read-only call qua Blockfrost — an toàn retry. Network blip / 5xx transient
+     * sẽ tự retry 3 lần với exponential backoff 500ms → 1s → 2s.
+     *
+     * KHÔNG retry cho create/update — tx đã submit có thể duplicate nếu retry.
+     */
     @Override
+    @Retryable(retryFor = AppException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 500, multiplier = 2.0, maxDelay = 5000))
     public W3CDIDDocument resolve(String txHash) {
         TxContentUtxoOutputs out = findInlineDatumOutput(txHash)
                 .orElseThrow(() -> new AppException(ErrorCode.CARDANO_RESOLVE_FAILED,
@@ -210,6 +221,9 @@ public class CardanoServiceImpl implements CardanoService {
     }
 
     @Override
+    @Retryable(retryFor = AppException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 500, multiplier = 2.0, maxDelay = 5000))
     public Optional<UtxoWithDoc> findDIDUtxo(String did) {
         String txHash = extractTxHash(did);
         if (txHash == null) {

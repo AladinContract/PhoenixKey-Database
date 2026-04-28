@@ -108,6 +108,13 @@
             <version>${bouncycastle.version}</version>
         </dependency>
 
+        <!-- Spring Retry: @Retryable cho Cardano network calls (transient failures).
+             Cần spring-aop (đã có sẵn qua starter-data-jpa). -->
+        <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+        </dependency>
+
         <!-- JJWT: JWT cho session_token / temp_token / linked_device_token (Phase D) -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
