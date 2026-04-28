@@ -1,7 +1,7 @@
 package com.magiclamp.phoenixkey_db.service.cardano;
 
-import com.magiclamp.phoenixkey_db.service.cardano.dto.TxResult;
-import com.magiclamp.phoenixkey_db.service.cardano.dto.W3CDIDDocument;
+import com.magiclamp.phoenixkey_db.dto.cardano.TxResult;
+import com.magiclamp.phoenixkey_db.dto.cardano.W3CDIDDocument;
 
 import java.util.Optional;
 

@@ -16,9 +16,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.magiclamp.phoenixkey_db.exception.AppException;
 import com.magiclamp.phoenixkey_db.exception.ErrorCode;
-import com.magiclamp.phoenixkey_db.service.cardano.dto.TxResult;
-import com.magiclamp.phoenixkey_db.service.cardano.dto.W3CDIDDocument;
-import com.magiclamp.phoenixkey_db.service.cardano.dto.W3CVerificationMethod;
+import com.magiclamp.phoenixkey_db.dto.cardano.TxResult;
+import com.magiclamp.phoenixkey_db.dto.cardano.W3CDIDDocument;
+import com.magiclamp.phoenixkey_db.dto.cardano.W3CVerificationMethod;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

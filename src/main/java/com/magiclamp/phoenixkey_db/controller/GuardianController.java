@@ -14,11 +14,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.magiclamp.phoenixkey_db.common.DataResponse;
-import com.magiclamp.phoenixkey_db.dto.request.GuardianAddRequest;
-import com.magiclamp.phoenixkey_db.dto.request.GuardianRemoveRequest;
-import com.magiclamp.phoenixkey_db.dto.response.GuardianAddResponse;
-import com.magiclamp.phoenixkey_db.dto.response.GuardianRemoveResponse;
-import com.magiclamp.phoenixkey_db.service.GuardianService;
+import com.magiclamp.phoenixkey_db.dto.guardian.GuardianAddRequest;
+import com.magiclamp.phoenixkey_db.dto.guardian.GuardianRemoveRequest;
+import com.magiclamp.phoenixkey_db.dto.guardian.GuardianAddResponse;
+import com.magiclamp.phoenixkey_db.dto.guardian.GuardianRemoveResponse;
+import com.magiclamp.phoenixkey_db.service.guardian.GuardianService;
 
 import lombok.RequiredArgsConstructor;
 

@@ -9,11 +9,13 @@ import com.magiclamp.phoenixkey_db.dto.session.SessionInitResponse;
 import com.magiclamp.phoenixkey_db.dto.session.SessionStatusResponse;
 import com.magiclamp.phoenixkey_db.exception.AppException;
 import com.magiclamp.phoenixkey_db.exception.ErrorCode;
+import com.magiclamp.phoenixkey_db.domain.User;
 import com.magiclamp.phoenixkey_db.repository.AuthorizedKeyRepository;
+import com.magiclamp.phoenixkey_db.repository.UserRepository;
 import com.magiclamp.phoenixkey_db.security.JwtService;
 import com.magiclamp.phoenixkey_db.security.JwtServiceImpl;
-import com.magiclamp.phoenixkey_db.service.ActivityLogService;
-import com.magiclamp.phoenixkey_db.service.RedisService;
+import com.magiclamp.phoenixkey_db.service.activity.ActivityLogService;
+import com.magiclamp.phoenixkey_db.service.redis.RedisService;
 import com.magiclamp.phoenixkey_db.service.crypto.SignatureService;
 import com.magiclamp.phoenixkey_db.service.push.PushService;
 import io.jsonwebtoken.Claims;
@@ -29,6 +31,7 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -52,6 +55,7 @@ public class SessionServiceImpl implements SessionService {
     private final SseEmitterRegistry sseRegistry;
     private final UuidGenerator uuidGenerator;
     private final AuthorizedKeyRepository authorizedKeyRepository;
+    private final UserRepository userRepository;
     private final ActivityLogService activityLogService;
     private final PushService pushService;
     private final ObjectMapper objectMapper;
@@ -176,10 +180,13 @@ public class SessionServiceImpl implements SessionService {
         log.info("Session approved: sid={}, userDid={}, ssePushed={}",
                 sessionId, request.userDid(), pushed);
 
-        // 8. Activity log — tạm pass userId=null vì AuthorizedKey không expose userId.
-        // Action + metadata đã đủ track. Phase E sẽ thêm User lookup nếu cần audit chi tiết.
+        // 8. Activity log với userId từ users table (spec §10 — audit phải có
+        //    user reference để cursor-paginated /activity-logs filter đúng).
+        //    Soft fallback null nếu user record không tồn tại (DB inconsistent).
         try {
-            activityLogService.log(null, ActivityLogService.ACTION_WEB_SESSION_APPROVED,
+            UUID userId = userRepository.findByUserDid(request.userDid())
+                    .map(User::getId).orElse(null);
+            activityLogService.log(userId, ActivityLogService.ACTION_WEB_SESSION_APPROVED,
                     Map.of("user_did", request.userDid(), "session_id", sessionId));
         } catch (Exception e) {
             log.warn("activity log failed: {}", e.getMessage());

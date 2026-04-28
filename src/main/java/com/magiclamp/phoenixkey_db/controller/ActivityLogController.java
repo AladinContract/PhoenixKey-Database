@@ -2,7 +2,7 @@ package com.magiclamp.phoenixkey_db.controller;
 
 import com.magiclamp.phoenixkey_db.common.DataResponse;
 import com.magiclamp.phoenixkey_db.domain.ActivityLog;
-import com.magiclamp.phoenixkey_db.dto.response.ActivityLogPage;
+import com.magiclamp.phoenixkey_db.dto.activity.ActivityLogPage;
 import com.magiclamp.phoenixkey_db.exception.AppException;
 import com.magiclamp.phoenixkey_db.exception.ErrorCode;
 import com.magiclamp.phoenixkey_db.repository.ActivityLogRepository;

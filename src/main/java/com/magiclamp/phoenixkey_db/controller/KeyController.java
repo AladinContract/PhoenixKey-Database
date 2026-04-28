@@ -14,12 +14,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.magiclamp.phoenixkey_db.common.DataResponse;
-import com.magiclamp.phoenixkey_db.dto.request.KeyAuthorizeRequest;
-import com.magiclamp.phoenixkey_db.dto.request.KeyRevokeRequest;
-import com.magiclamp.phoenixkey_db.dto.request.KeyRotateRequest;
-import com.magiclamp.phoenixkey_db.dto.response.KeyAuthorizeResponse;
-import com.magiclamp.phoenixkey_db.dto.response.KeyRotationResponse;
-import com.magiclamp.phoenixkey_db.service.KeyService;
+import com.magiclamp.phoenixkey_db.dto.key.KeyAuthorizeRequest;
+import com.magiclamp.phoenixkey_db.dto.key.KeyRevokeRequest;
+import com.magiclamp.phoenixkey_db.dto.key.KeyRotateRequest;
+import com.magiclamp.phoenixkey_db.dto.key.KeyAuthorizeResponse;
+import com.magiclamp.phoenixkey_db.dto.key.KeyRotationResponse;
+import com.magiclamp.phoenixkey_db.service.key.KeyService;
 
 import lombok.RequiredArgsConstructor;
 

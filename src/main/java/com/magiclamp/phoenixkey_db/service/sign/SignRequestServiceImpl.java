@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.magiclamp.phoenixkey_db.common.UuidGenerator;
+import com.magiclamp.phoenixkey_db.domain.User;
 import com.magiclamp.phoenixkey_db.dto.sign.SignApproveRequest;
 import com.magiclamp.phoenixkey_db.dto.sign.SignIntent;
 import com.magiclamp.phoenixkey_db.dto.sign.SignRequestCreateRequest;
@@ -15,9 +16,9 @@ import com.magiclamp.phoenixkey_db.repository.AuthorizedKeyRepository;
 import com.magiclamp.phoenixkey_db.repository.UserRepository;
 import com.magiclamp.phoenixkey_db.security.JwtService;
 import com.magiclamp.phoenixkey_db.security.JwtServiceImpl;
-import com.magiclamp.phoenixkey_db.service.ActivityLogService;
-import com.magiclamp.phoenixkey_db.service.NonceService;
-import com.magiclamp.phoenixkey_db.service.RedisService;
+import com.magiclamp.phoenixkey_db.service.activity.ActivityLogService;
+import com.magiclamp.phoenixkey_db.service.nonce.NonceService;
+import com.magiclamp.phoenixkey_db.service.redis.RedisService;
 import com.magiclamp.phoenixkey_db.service.crypto.SignatureService;
 import com.magiclamp.phoenixkey_db.service.push.PushService;
 import com.magiclamp.phoenixkey_db.service.session.SseEmitterRegistry;
@@ -28,7 +29,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @Slf4j
@@ -40,6 +43,14 @@ public class SignRequestServiceImpl implements SignRequestService {
 
     private static final String EVENT_SIGNED = "signed";
     private static final String EVENT_CANCELLED = "cancelled";
+
+    /** Spec §15.2 — intent.timestamp lệch tối đa 60s so với server (chống replay). */
+    private static final long TIMESTAMP_SKEW_SEC = 60;
+
+    private static final String META_USER_DID = "user_did";
+    private static final String META_REQUEST_ID = "request_id";
+    private static final String META_INTENT_TYPE = "intent_type";
+    private static final String INTENT_SEED_EXPORT = "SEED_EXPORT";
 
     private final RedisService redisService;
     private final JwtService jwtService;
@@ -111,10 +122,19 @@ public class SignRequestServiceImpl implements SignRequestService {
 
         redisService.saveSignRequest(requestId, toJson(payload), ttl);
 
+        // Spec §10 audit trail — log mọi sign-request init (đặc biệt quan trọng
+        // với SEED_EXPORT). User lookup soft fail vì userDid đã verify qua JWT.
+        UUID userId = lookupUserId(userDid);
+        activityLogService.log(userId, ActivityLogService.ACTION_SIGN_REQUEST_INITIATED,
+                Map.of(META_USER_DID, userDid,
+                        META_REQUEST_ID, requestId,
+                        META_INTENT_TYPE, request.intent().type(),
+                        "session_id", request.sessionId()));
+
         // Push notification — stub log nếu chưa wire FCM/APNs (Phase D.4).
         // SEED_EXPORT là special intent, dùng channel push riêng cho UX cảnh báo
         // mạnh hơn (xem spec §9.2).
-        if ("SEED_EXPORT".equals(request.intent().type())) {
+        if (INTENT_SEED_EXPORT.equals(request.intent().type())) {
             pushService.notifySeedExportRequest(userDid, requestId);
         } else {
             pushService.notifySignRequest(userDid, requestId);
@@ -147,7 +167,17 @@ public class SignRequestServiceImpl implements SignRequestService {
                     "sign request not pending: " + payload.status());
         }
 
-        // 1. Verify pubkey thuộc userDid
+        // 1. Spec §15.2 — validate intent.timestamp lệch ±60s. Đặt trước nonce
+        //    consume để fail-fast: nếu timestamp invalid, không tốn 1 nonce DB row.
+        long now = Instant.now().getEpochSecond();
+        if (Math.abs(now - payload.intent().timestamp()) > TIMESTAMP_SKEW_SEC) {
+            log.warn("SignRequest approve: timestamp skew exceeds {}s — now={}, intent.ts={}",
+                    TIMESTAMP_SKEW_SEC, now, payload.intent().timestamp());
+            throw new AppException(ErrorCode.SIGNATURE_INVALID,
+                    "intent timestamp skew exceeds " + TIMESTAMP_SKEW_SEC + "s");
+        }
+
+        // 2. Verify pubkey thuộc userDid
         boolean keyOk = authorizedKeyRepository.existsByUserDidAndPublicKeyHexAndStatus(
                 payload.userDid(), request.publicKeyHex(), "active");
         if (!keyOk) {
@@ -155,18 +185,18 @@ public class SignRequestServiceImpl implements SignRequestService {
                     "publicKeyHex không thuộc userDid của sign request");
         }
 
-        // 2. Consume nonce — chống replay tx cũ. Nonce trong intent.
+        // 3. Consume nonce — chống replay tx cũ. Nonce trong intent.
         nonceService.validateAndConsume(payload.intent().nonce(),
                 payload.userDid(), Duration.ofMinutes(5));
 
-        // 3. Verify signature trên canonical intent JSON
+        // 4. Verify signature trên canonical intent JSON
         byte[] message = canonicalIntentBytes(payload.intent());
         byte[] sigBytes = hexToBytes(request.signature());
         if (!signatureService.verifyEcdsa(request.publicKeyHex(), message, sigBytes)) {
             throw new AppException(ErrorCode.SIGNATURE_INVALID, "Sign intent signature invalid");
         }
 
-        // 4. Update Redis: status=approved, kèm signature
+        // 5. Update Redis: status=approved, kèm signature
         SignRequestPayload approved = new SignRequestPayload(
                 payload.requestId(), payload.userDid(), payload.sessionId(),
                 payload.intent(), STATUS_APPROVED, payload.expiresAt());
@@ -176,7 +206,7 @@ public class SignRequestServiceImpl implements SignRequestService {
         }
         redisService.saveSignRequest(requestId, toJson(approved), remaining);
 
-        // 5. Push SSE event tới web
+        // 6. Push SSE event tới web
         Map<String, Object> event = Map.of(
                 "status", STATUS_APPROVED,
                 "requestId", requestId,
@@ -186,19 +216,21 @@ public class SignRequestServiceImpl implements SignRequestService {
         log.info("SignRequest approved: id={}, userDid={}, ssePushed={}",
                 requestId, payload.userDid(), pushed);
 
-        activityLogService.log(null, ActivityLogService.ACTION_SIGN_REQUEST_APPROVED,
-                Map.of("user_did", payload.userDid(), "request_id", requestId,
-                        "intent_type", payload.intent().type()));
+        UUID approverId = lookupUserId(payload.userDid());
+        activityLogService.log(approverId, ActivityLogService.ACTION_SIGN_REQUEST_APPROVED,
+                Map.of(META_USER_DID, payload.userDid(),
+                        META_REQUEST_ID, requestId,
+                        META_INTENT_TYPE, payload.intent().type()));
 
         // Side-effect SEED_EXPORT: ghi users.seed_exported_at = NOW() (spec §9.5)
         // → dashboard banner cảnh báo bảo mật giảm cho đến khi user xoay khóa.
-        if ("SEED_EXPORT".equals(payload.intent().type())) {
+        if (INTENT_SEED_EXPORT.equals(payload.intent().type())) {
             userRepository.findByUserDid(payload.userDid()).ifPresent(user -> {
-                user.setSeedExportedAt(java.time.OffsetDateTime.now());
+                user.setSeedExportedAt(OffsetDateTime.now());
                 userRepository.save(user);
                 activityLogService.log(user.getId(),
                         ActivityLogService.ACTION_SEED_PHRASE_EXPORTED,
-                        Map.of("request_id", requestId));
+                        Map.of(META_REQUEST_ID, requestId));
             });
         }
     }
@@ -218,6 +250,13 @@ public class SignRequestServiceImpl implements SignRequestService {
         SignRequestPayload payload = loadPayload(requestId);
         if (!userDid.equals(payload.userDid())) {
             throw new AppException(ErrorCode.SIGN_REQUEST_NOT_FOUND, "sign request không thuộc user");
+        }
+        // Idempotency: chỉ cancel khi đang pending. Approved/cancelled rồi → no-op.
+        // Tránh race condition mobile-approve và web-cancel ghi đè lên nhau, gây
+        // SSE emit "cancelled" sau khi web đã nhận "signed".
+        if (!STATUS_PENDING.equals(payload.status())) {
+            throw new AppException(ErrorCode.SIGN_REQUEST_EXPIRED,
+                    "sign request not pending: " + payload.status());
         }
 
         SignRequestPayload cancelled = new SignRequestPayload(
@@ -239,6 +278,12 @@ public class SignRequestServiceImpl implements SignRequestService {
                 .map(json -> fromJson(json, SignRequestPayload.class))
                 .orElseThrow(() -> new AppException(ErrorCode.SIGN_REQUEST_NOT_FOUND,
                         "sign request: " + requestId));
+    }
+
+    /** Soft lookup userId từ userDid — null nếu user record chưa tồn tại
+     *  (hiếm: chỉ xảy ra nếu DB inconsistent giữa users + authorized_keys). */
+    private UUID lookupUserId(String userDid) {
+        return userRepository.findByUserDid(userDid).map(User::getId).orElse(null);
     }
 
     private byte[] canonicalIntentBytes(SignIntent intent) {

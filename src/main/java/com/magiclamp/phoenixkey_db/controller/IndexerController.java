@@ -14,8 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.magiclamp.phoenixkey_db.common.DataResponse;
-import com.magiclamp.phoenixkey_db.dto.request.SyncTaadRequest;
-import com.magiclamp.phoenixkey_db.service.IndexerService;
+import com.magiclamp.phoenixkey_db.dto.indexer.SyncTaadRequest;
+import com.magiclamp.phoenixkey_db.service.indexer.IndexerService;
 
 import lombok.RequiredArgsConstructor;
 

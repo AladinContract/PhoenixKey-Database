@@ -12,18 +12,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.magiclamp.phoenixkey_db.common.DataResponse;
-import com.magiclamp.phoenixkey_db.dto.request.IdentityRegisterRequest;
-import com.magiclamp.phoenixkey_db.dto.response.IdentityPubkeyResponse;
-import com.magiclamp.phoenixkey_db.dto.response.IdentityRegisterResponse;
-import com.magiclamp.phoenixkey_db.dto.response.IdentityHealthResponse;
-import com.magiclamp.phoenixkey_db.dto.response.IdentityStatusResponse;
+import com.magiclamp.phoenixkey_db.dto.identity.IdentityRegisterRequest;
+import com.magiclamp.phoenixkey_db.dto.identity.IdentityPubkeyResponse;
+import com.magiclamp.phoenixkey_db.dto.identity.IdentityRegisterResponse;
+import com.magiclamp.phoenixkey_db.dto.identity.IdentityHealthResponse;
+import com.magiclamp.phoenixkey_db.dto.identity.IdentityStatusResponse;
 import com.magiclamp.phoenixkey_db.exception.AppException;
 import com.magiclamp.phoenixkey_db.exception.ErrorCode;
 import com.magiclamp.phoenixkey_db.security.JwtService;
 import com.magiclamp.phoenixkey_db.security.JwtServiceImpl;
-import com.magiclamp.phoenixkey_db.service.IdentityService;
+import com.magiclamp.phoenixkey_db.service.identity.IdentityService;
 import com.magiclamp.phoenixkey_db.service.cardano.CardanoService;
-import com.magiclamp.phoenixkey_db.service.cardano.dto.W3CDIDDocument;
+import com.magiclamp.phoenixkey_db.dto.cardano.W3CDIDDocument;
 import io.jsonwebtoken.Claims;
 
 import lombok.RequiredArgsConstructor;
