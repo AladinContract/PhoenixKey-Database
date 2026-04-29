@@ -180,10 +180,14 @@ services:
       - path: .env
         required: true
     environment:
-      # Override: dùng service name trong Docker network — bỏ qua giá trị từ
-      # .env (.env's host vars chỉ dùng cho dev native app).
+      # Override: trong Docker network, app connect tới container PORT NỘI BỘ
+      # (luôn cố định) qua service name DNS — bỏ qua DB_PORT/REDIS_PORT/VAULT_PORT
+      # trong .env (những biến đó CHỈ dùng cho host-port mapping ở block ports
+      # phía trên, để truy cập từ máy host).
       DB_HOST: postgres
+      DB_PORT: 5432
       REDIS_HOST: redis
+      REDIS_PORT: 6379
       VAULT_ADDR: http://vault:8200
       CARDANO_NETWORK: ${CARDANO_NETWORK:-preprod}
       TZ: UTC
