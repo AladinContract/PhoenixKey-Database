@@ -30,6 +30,9 @@
     <properties>
         <java.version>21</java.version>
         <uuid-creator.version>5.3.7</uuid-creator.version>
+        <cardano-client.version>0.6.4</cardano-client.version>
+        <bouncycastle.version>1.78.1</bouncycastle.version>
+        <jjwt.version>0.12.6</jjwt.version>
     </properties>
     <dependencies>
         <!-- Web -->
@@ -84,6 +87,53 @@
         <!-- HashiCorp Vault — dùng RestTemplate gọi HTTP API trực tiếp (không cần
         spring-vault-core) -->
 
+        <!-- Cardano (Phase B): BloxBean cardano-client-lib + Blockfrost backend.
+             Build/sign/submit Cardano tx, resolve UTxO datum cho DID Document. -->
+        <dependency>
+            <groupId>com.bloxbean.cardano</groupId>
+            <artifactId>cardano-client-lib</artifactId>
+            <version>${cardano-client.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.bloxbean.cardano</groupId>
+            <artifactId>cardano-client-backend-blockfrost</artifactId>
+            <version>${cardano-client.version}</version>
+        </dependency>
+
+        <!-- BouncyCastle: ECDSA secp256k1 signature verification cho Hardware Key
+             (JCE provider mặc định không support secp256k1). -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>${bouncycastle.version}</version>
+        </dependency>
+
+        <!-- Spring Retry: @Retryable cho Cardano network calls (transient failures).
+             Cần spring-aop (đã có sẵn qua starter-data-jpa). -->
+        <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+        </dependency>
+
+        <!-- JJWT: JWT cho session_token / temp_token / linked_device_token (Phase D) -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>${jjwt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
         <!-- UUIDv7 generator -->
         <!-- Vì Java std lib chỉ có UUIDv4, cần lib này để tạo UUIDv7 (timestamp-prefixed) -->
         <dependency>
@@ -108,6 +158,15 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- DevTools — hot reload khi code thay đổi (Ctrl+S → restart context) -->
+        <!-- KHÔNG đóng gói vào JAR production: tự bị bỏ qua khi run từ JAR đầy đủ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
             <optional>true</optional>
         </dependency>
 
@@ -171,6 +230,13 @@
                         </exclude>
                     </excludes>
                 </configuration>
+            </plugin>
+            <!-- exec-maven-plugin: chạy main class CLI dev (vd: KeypairGenCli) qua
+                 ./mvnw exec:java. Không ảnh hưởng prod build. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.4.1</version>
             </plugin>
         </plugins>
     </build>

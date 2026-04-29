@@ -1,16 +1,16 @@
-version: "3.9"
-
 # ============================================================
-# PhoenixKey Database — Production Stack
+# PhoenixKey-Server — Local infra stack (postgres + redis + vault)
 #
-# Trước khi chạy:   cp .env.example .env && chmod 600 .env
-# Chạy full stack:  docker compose up -d
-# Chỉ infra:        docker compose up -d postgres redis
-# Build lại app:    docker compose build app
-# Xem logs:         docker compose logs -f app
-# Reset toàn bộ:    docker compose down -v
+# App chạy native: ./mvnw spring-boot:run
+# Infra binds 127.0.0.1 only — production dùng managed DB + HCP Vault.
 #
-# Vault: Dùng HCP Vault (cloud) — xem .env.example
+# Trước khi chạy: cp .env.example .env && chmod 600 .env
+# Up infra:       docker compose up -d
+# Reset toàn bộ:  docker compose down -v
+# Logs:           docker compose logs -f
+#
+# Sau khi vault up: bash infrastructure/vault/seed-dev.sh để populate secrets.
+# Để chạy app trong container: uncomment service `app` ở cuối file.
 # ============================================================
 
 x-logging: &default-logging
@@ -33,8 +33,10 @@ services:
       POSTGRES_USER: ${DB_USERNAME:-phoenixkey}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       TZ: UTC
-    expose:
-      - "5432"
+    # Container port luôn 5432; host port lấy từ DB_PORT (mặc định 5432).
+    # Bind 127.0.0.1 — prod dùng managed DB nên không xài stack này.
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -57,7 +59,7 @@ services:
     logging: *default-logging
 
   # ──────────────────────────────────────────────────────────
-  # Redis 7 — Cache cho OTP, Session, Rate Limit
+  # Redis 7 — Cache cho Session, Rate Limit, Sign-Request, Challenge
   # ──────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
@@ -66,8 +68,8 @@ services:
     environment:
       TZ: UTC
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
-    expose:
-      - "6379"
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     command: >
@@ -90,50 +92,114 @@ services:
     logging: *default-logging
 
   # ──────────────────────────────────────────────────────────
-  # Spring Boot App — PhoenixKey Database Service
-  # Port 8080: API (context-path /api/v1) + Actuator (/api/v1/actuator/*)
+  # HashiCorp Vault — KMS dev mode (chỉ dùng local)
+  #
+  # ⚠ Storage: inmem — RESTART CONTAINER = MẤT TOÀN BỘ SECRETS.
+  #   Sau mỗi `docker compose up --force-recreate vault` hoặc reboot máy,
+  #   chạy lại: bash infrastructure/vault/seed-dev.sh
+  #
+  # Layout chuẩn (KV v2 mounted at `secret/`):
+  #   secret/phoenixkey/fee-wallet/mnemonic   { "words": [...] }
+  #   secret/phoenixkey/jwt/secret            { "key": "<base64>" }
+  #   secret/phoenixkey/fcm/service-account   { "json": "..." }
+  #   secret/phoenixkey/apns/auth-key         { "key": "...", "keyId": "...", "teamId": "..." }
+  #
+  # PROD: comment block này, set VAULT_ADDR trong .env trỏ HCP Vault.
   # ──────────────────────────────────────────────────────────
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: phoenixkey-db-spring-app
+  vault:
+    image: hashicorp/vault:1.17
+    container_name: phoenixkey-db-vault
     restart: unless-stopped
-    ports:
-      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-8084}:8080"
-    env_file:
-      - path: .env
-        required: true
+    cap_add:
+      - IPC_LOCK
     environment:
-      # Override: service name thay vì localhost trong Docker network
-      DB_HOST: postgres
-      REDIS_HOST: redis
-      # host.docker.internal cho dev local; prod nên dùng HCP Vault URL qua VAULT_ADDR
-      VAULT_ADDR: ${VAULT_ADDR:-http://host.docker.internal:8200}
-      TZ: UTC
-    extra_hosts:
-      # Cho phép container truy cập host machine (dev local Vault) trên Linux
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      # Hardcoded — Vault dev mode reject prefix hvs.* (reserved cho HCP).
+      # App phải set VAULT_TOKEN=phoenixkey-dev-token trong .env để match.
+      VAULT_DEV_ROOT_TOKEN_ID: phoenixkey-dev-token
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    ports:
+      - "127.0.0.1:${VAULT_PORT:-8200}:8200"
     healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/api/v1/actuator/health | grep -q UP || exit 1" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      # vault CLI có sẵn (image entrypoint). Exit 0 = initialized + unsealed.
+      # wget không có trong image alpine slim này.
+      test: [ "CMD-SHELL", "VAULT_ADDR=http://localhost:8200 vault status > /dev/null 2>&1" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     deploy:
       resources:
         limits:
-          memory: ${APP_MEM_LIMIT:-2G}
+          memory: 256M
     logging: *default-logging
 
-# ──────────────────────────────────────────────────────────
-# Persistent Volumes
-# ──────────────────────────────────────────────────────────
+  # ──────────────────────────────────────────────────────────
+  # Vault auto-seeder watchdog — chạy daemon, poll mỗi 30s.
+  # Tự re-seed nếu vault inmem bị wipe (container restart, laptop sleep, v.v).
+  # Fee-wallet mnemonic idempotent: giữ nguyên giữa các lần seed (ví không đổi).
+  # ──────────────────────────────────────────────────────────
+  vault-seed:
+    image: hashicorp/vault:1.17
+    container_name: phoenixkey-db-vault-seed
+    depends_on:
+      vault:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: phoenixkey-dev-token
+      BLOCKFROST_API_KEY: ${BLOCKFROST_API_KEY:-}
+      # Override dummy mnemonic — set trong .env để dùng wallet riêng (./tools/keygen wallet)
+      FEE_WALLET_MNEMONIC: ${FEE_WALLET_MNEMONIC:-}
+    volumes:
+      - ./infrastructure/vault/seed-dev.sh:/seed.sh:ro
+    entrypoint: [ "sh", "/seed.sh" ]
+    restart: unless-stopped
+    logging: *default-logging
+  # ──────────────────────────────────────────────────────────
+  # Spring Boot App — PhoenixKey-Server
+  # Port 8080: API (context-path /api/v1) + Actuator (/api/v1/actuator/*)
+  # # ──────────────────────────────────────────────────────────
+  # app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: phoenixkey-db-spring-app
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${APP_BIND:-0.0.0.0}:${APP_PORT:-8084}:8080"
+  #   env_file:
+  #     - path: .env
+  #       required: true
+  #   environment:
+  #     # Override: dùng service name trong Docker network — bỏ qua giá trị từ
+  #     # .env (.env's host vars chỉ dùng cho dev native app).
+  #     DB_HOST: postgres
+  #     REDIS_HOST: redis
+  #     VAULT_ADDR: http://vault:8200
+  #     CARDANO_NETWORK: ${CARDANO_NETWORK:-preprod}
+  #     TZ: UTC
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     vault:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/api/v1/actuator/health | grep -q UP || exit 1" ]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 60s
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: ${APP_MEM_LIMIT:-2G}
+  #   logging: *default-logging
+
+  # ──────────────────────────────────────────────────────────
+  # Persistent Volumes
+  # ──────────────────────────────────────────────────────────
 volumes:
   postgres_data:
     driver: local

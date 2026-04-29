@@ -14,10 +14,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.magiclamp.phoenixkey_db.common.DataResponse;
-import com.magiclamp.phoenixkey_db.dto.request.KeyAuthorizeRequest;
-import com.magiclamp.phoenixkey_db.dto.request.KeyRevokeRequest;
-import com.magiclamp.phoenixkey_db.dto.response.KeyAuthorizeResponse;
-import com.magiclamp.phoenixkey_db.service.KeyService;
+import com.magiclamp.phoenixkey_db.dto.key.KeyAuthorizeRequest;
+import com.magiclamp.phoenixkey_db.dto.key.KeyRevokeRequest;
+import com.magiclamp.phoenixkey_db.dto.key.KeyRotateRequest;
+import com.magiclamp.phoenixkey_db.dto.key.KeyAuthorizeResponse;
+import com.magiclamp.phoenixkey_db.dto.key.KeyRotationResponse;
+import com.magiclamp.phoenixkey_db.service.key.KeyService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -129,6 +131,44 @@ public class KeyController {
                 DataResponse.<Void>builder()
                         .code(1000)
                         .message("Key revoked")
+                        .build());
+    }
+
+    /**
+     * Rotate Hardware Key — thay thế owner key bằng key mới qua Cardano updateDID.
+     *
+     * Spec §11. Mobile gọi sau khi user yêu cầu rotate (vd: sau khi trích xuất
+     * Seed Phrase, hoặc nghi key compromise).
+     */
+    @Operation(summary = "Rotate Hardware Key (spec §11)", description = """
+            Thay thế owner key của user bằng key mới qua Cardano updateDID.
+
+            **Flow:**
+            1. Verify oldKeySignature trên `"PHOENIXKEY_ROTATE:" + newPublicKeyHex + ":" + nonce`
+               bằng public key cũ — đảm bảo người gọi có private key cũ.
+            2. Consume nonce — chống replay.
+            3. Build + submit Cardano updateDID tx (consume UTxO cũ + tạo UTxO mới
+               với datum chứa pubkey mới). Fee wallet ký full tx (MVP).
+            4. DB: revoke key cũ + insert key mới active.
+
+            **⚠ Caveat MVP:** Fee wallet ký Cardano tx, không enforce old key sign
+            như required signer trên-chain. Phase H sẽ yêu cầu mobile cung cấp
+            partial-signed CBOR từ old key để đạt full Zero-Trust.
+            """)
+    @ApiResponse(responseCode = "200", description = "Key rotated, txHash trả về", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    @ApiResponse(responseCode = "403", description = "Old key signature invalid", content = @Content)
+    @ApiResponse(responseCode = "404", description = "User hoặc owner key không tồn tại", content = @Content)
+    @ApiResponse(responseCode = "409", description = "Nonce đã dùng", content = @Content)
+    @ApiResponse(responseCode = "502", description = "Cardano tx fail", content = @Content)
+    @PostMapping("/rotate")
+    public ResponseEntity<DataResponse<KeyRotationResponse>> rotate(
+            @Valid @RequestBody KeyRotateRequest request) {
+        KeyRotationResponse result = keyService.rotate(request);
+        return ResponseEntity.ok(
+                DataResponse.<KeyRotationResponse>builder()
+                        .code(1000)
+                        .message("Key rotated")
+                        .result(result)
                         .build());
     }
 }
