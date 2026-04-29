@@ -4,6 +4,7 @@
 # Wrapper chạy KeypairGenCli qua maven exec.
 #
 # Usage:
+#   ./tools/keygen wallet
 #   ./tools/keygen genesis
 #   ./tools/keygen rotate <privKeyHex> <newPubKeyHex> [nonce]
 #   ./tools/keygen sign   <privKeyHex> <message>
@@ -17,6 +18,8 @@ if [ -z "$ARGS" ]; then
     ARGS="help"
 fi
 
-exec ./mvnw -q exec:java \
+# `compile` đảm bảo target/classes có sẵn KeypairGenCli khi chạy trên fresh
+# checkout / container. Bỏ qua compile → ClassNotFoundException.
+exec ./mvnw -q compile exec:java \
     -Dexec.mainClass="com.magiclamp.phoenixkey_db.tools.KeypairGenCli" \
     -Dexec.args="$ARGS"
