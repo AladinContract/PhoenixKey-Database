@@ -1,16 +1,21 @@
 # ============================================================
-# PhoenixKey-Server — Local infra stack (postgres + redis + vault)
+# PhoenixKey-Server — All-in-one stack (dev + prod cùng 1 file)
 #
-# App chạy native: ./mvnw spring-boot:run
-# Infra binds 127.0.0.1 only — production dùng managed DB + HCP Vault.
+# Services: postgres + redis + vault (self-host) + vault-seed + app
 #
-# Trước khi chạy: cp .env.example .env && chmod 600 .env
-# Up infra:       docker compose up -d
-# Reset toàn bộ:  docker compose down -v
-# Logs:           docker compose logs -f
+# Khác biệt dev vs prod = giá trị trong .env (KHÔNG có file compose.prod riêng).
+# Production: copy .env.example → .env, điền giá trị thật, chmod 600.
 #
-# Sau khi vault up: bash infrastructure/vault/seed-dev.sh để populate secrets.
-# Để chạy app trong container: uncomment service `app` ở cuối file.
+# Lệnh:
+#   cp .env.example .env && chmod 600 .env   # 1 lần
+#   docker compose up -d --build             # start
+#   docker compose logs -f app               # tail
+#   docker compose down                      # stop (giữ data)
+#   docker compose down -v                   # wipe data
+#
+# ⚠ Vault dev mode (inmem storage) — restart container = wipe secrets.
+#   vault-seed daemon tự re-seed mỗi 30s từ FEE_WALLET_MNEMONIC + JWT_SECRET_BASE64
+#   trong .env. Đảm bảo cả 2 env này được set cho production.
 # ============================================================
 
 x-logging: &default-logging
@@ -92,19 +97,20 @@ services:
     logging: *default-logging
 
   # ──────────────────────────────────────────────────────────
-  # HashiCorp Vault — KMS dev mode (chỉ dùng local)
+  # HashiCorp Vault — self-host KMS (dev mode, inmem storage)
   #
   # ⚠ Storage: inmem — RESTART CONTAINER = MẤT TOÀN BỘ SECRETS.
-  #   Sau mỗi `docker compose up --force-recreate vault` hoặc reboot máy,
-  #   chạy lại: bash infrastructure/vault/seed-dev.sh
+  #   vault-seed daemon (service dưới) tự re-seed từ env mỗi khi phát hiện wipe,
+  #   nên app vẫn vận hành liên tục — secrets gốc nằm trong .env.
   #
   # Layout chuẩn (KV v2 mounted at `secret/`):
   #   secret/phoenixkey/fee-wallet/mnemonic   { "words": [...] }
   #   secret/phoenixkey/jwt/secret            { "key": "<base64>" }
-  #   secret/phoenixkey/fcm/service-account   { "json": "..." }
-  #   secret/phoenixkey/apns/auth-key         { "key": "...", "keyId": "...", "teamId": "..." }
+  #   secret/phoenixkey/fcm/service-account   { "json": "..." }     (optional, Phase H+)
+  #   secret/phoenixkey/apns/auth-key         { "key": "..." }       (optional, Phase H+)
   #
-  # PROD: comment block này, set VAULT_ADDR trong .env trỏ HCP Vault.
+  # Migrate sang HCP Vault sau (khi cần managed): comment block này +
+  # vault-seed, đổi VAULT_ADDR/VAULT_TOKEN/VAULT_NAMESPACE trong .env.
   # ──────────────────────────────────────────────────────────
   vault:
     image: hashicorp/vault:1.17
@@ -150,6 +156,9 @@ services:
       BLOCKFROST_API_KEY: ${BLOCKFROST_API_KEY:-}
       # Override dummy mnemonic — set trong .env để dùng wallet riêng (./tools/keygen wallet)
       FEE_WALLET_MNEMONIC: ${FEE_WALLET_MNEMONIC:-}
+      # PROD: BẮT BUỘC set để JWT secret persist qua Vault inmem wipe (xem .env.example).
+      # Bỏ qua → mỗi container restart sinh JWT key mới → user phải login lại.
+      JWT_SECRET_BASE64: ${JWT_SECRET_BASE64:-}
     volumes:
       - ./infrastructure/vault/seed-dev.sh:/seed.sh:ro
     entrypoint: [ "sh", "/seed.sh" ]
@@ -159,44 +168,43 @@ services:
   # Spring Boot App — PhoenixKey-Server
   # Port 8080: API (context-path /api/v1) + Actuator (/api/v1/actuator/*)
   # # ──────────────────────────────────────────────────────────
-  # app:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   container_name: phoenixkey-db-spring-app
-  #   restart: unless-stopped
-  #   ports:
-  #     - "${APP_BIND:-0.0.0.0}:${APP_PORT:-8084}:8080"
-  #   env_file:
-  #     - path: .env
-  #       required: true
-  #   environment:
-  #     # Override: dùng service name trong Docker network — bỏ qua giá trị từ
-  #     # .env (.env's host vars chỉ dùng cho dev native app).
-  #     DB_HOST: postgres
-  #     REDIS_HOST: redis
-  #     VAULT_ADDR: http://vault:8200
-  #     CARDANO_NETWORK: ${CARDANO_NETWORK:-preprod}
-  #     TZ: UTC
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #     vault:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/api/v1/actuator/health | grep -q UP || exit 1" ]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 60s
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: ${APP_MEM_LIMIT:-2G}
-  #   logging: *default-logging
-
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: phoenixkey-db-spring-app
+    restart: unless-stopped
+    ports:
+      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-8084}:8080"
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      # Override: dùng service name trong Docker network — bỏ qua giá trị từ
+      # .env (.env's host vars chỉ dùng cho dev native app).
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      VAULT_ADDR: http://vault:8200
+      CARDANO_NETWORK: ${CARDANO_NETWORK:-preprod}
+      TZ: UTC
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/api/v1/actuator/health | grep -q UP || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: ${APP_MEM_LIMIT:-2G}
+    logging: *default-logging
   # ──────────────────────────────────────────────────────────
   # Persistent Volumes
   # ──────────────────────────────────────────────────────────
