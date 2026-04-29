@@ -64,10 +64,20 @@ seed() {
         echo "    fee-wallet/mnemonic: seeded ($SOURCE)"
     fi
 
-    # ── JWT secret — random mỗi lần seed (dev only) ──
-    JWT_KEY="$(head -c 32 /dev/urandom | base64 | tr -d '\n')"
+    # ── JWT secret — env-first để persist qua Vault inmem wipe ──
+    # PROD: BẮT BUỘC set JWT_SECRET_BASE64 trong .env (random 32-byte base64).
+    #       Bỏ qua → mỗi container restart wipe Vault → re-seed → key mới →
+    #       toàn bộ session JWT đang active invalidate (user phải login lại).
+    # DEV: nếu không set, sinh random — chấp nhận session invalidate khi restart.
+    if [ -n "${JWT_SECRET_BASE64:-}" ]; then
+        JWT_KEY="$JWT_SECRET_BASE64"
+        JWT_SOURCE="env JWT_SECRET_BASE64 (persistent)"
+    else
+        JWT_KEY="$(head -c 32 /dev/urandom | base64 | tr -d '\n')"
+        JWT_SOURCE="random 32-byte — JWT cũ invalidate khi Vault restart"
+    fi
     vault kv put secret/phoenixkey/jwt/secret key="$JWT_KEY" >/dev/null
-    echo "    jwt/secret: seeded (random 32-byte)"
+    echo "    jwt/secret: seeded ($JWT_SOURCE)"
 
     # ── Optional: Blockfrost API key ──
     if [ -n "${BLOCKFROST_API_KEY:-}" ]; then
