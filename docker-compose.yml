@@ -159,44 +159,43 @@ services:
   # Spring Boot App — PhoenixKey-Server
   # Port 8080: API (context-path /api/v1) + Actuator (/api/v1/actuator/*)
   # # ──────────────────────────────────────────────────────────
-  # app:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   container_name: phoenixkey-db-spring-app
-  #   restart: unless-stopped
-  #   ports:
-  #     - "${APP_BIND:-0.0.0.0}:${APP_PORT:-8084}:8080"
-  #   env_file:
-  #     - path: .env
-  #       required: true
-  #   environment:
-  #     # Override: dùng service name trong Docker network — bỏ qua giá trị từ
-  #     # .env (.env's host vars chỉ dùng cho dev native app).
-  #     DB_HOST: postgres
-  #     REDIS_HOST: redis
-  #     VAULT_ADDR: http://vault:8200
-  #     CARDANO_NETWORK: ${CARDANO_NETWORK:-preprod}
-  #     TZ: UTC
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #     vault:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/api/v1/actuator/health | grep -q UP || exit 1" ]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 60s
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: ${APP_MEM_LIMIT:-2G}
-  #   logging: *default-logging
-
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: phoenixkey-db-spring-app
+    restart: unless-stopped
+    ports:
+      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-8084}:8080"
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      # Override: dùng service name trong Docker network — bỏ qua giá trị từ
+      # .env (.env's host vars chỉ dùng cho dev native app).
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      VAULT_ADDR: http://vault:8200
+      CARDANO_NETWORK: ${CARDANO_NETWORK:-preprod}
+      TZ: UTC
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/api/v1/actuator/health | grep -q UP || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: ${APP_MEM_LIMIT:-2G}
+    logging: *default-logging
   # ──────────────────────────────────────────────────────────
   # Persistent Volumes
   # ──────────────────────────────────────────────────────────
