@@ -14,12 +14,12 @@ Backend duy nhất phục vụ **mobile app** (Aladin/PhoenixKey) và **web** (p
 ```
 ┌──────────────────┐            ┌────────────────────────┐            ┌────────────────────┐
 │ Mobile           │            │ phoenixkey-server      │            │ Cardano blockchain │
-│ (Hardware Key    │ ◀────────▶ │ (THIS REPO)            │ ◀────────▶ │ (Preprod/Mainnet)  │
+│ (Hardware Key    │◀───────▶ │ (THIS REPO)            │◀───────▶ │ (Preprod/Mainnet)  │
 │  trong Enclave)  │  HTTPS     │  • Verify signatures   │  Blockfrost│  DID Document =    │
 └──────────────────┘            │  • Mint JWT tokens     │            │  inline datum trên │
                                 │  • Submit Cardano tx   │            │  UTxO              │
 ┌──────────────────┐            │  • Push notification   │            └────────────────────┘
-│ Web              │ ◀────────▶ │  • Relay sign-request  │
+│ Web              │◀───────▶ │  • Relay sign-request  │
 │ (phoenixkey.me)  │  HTTPS+SSE │  • Audit log           │
 └──────────────────┘            └────────────────────────┘
 ```
@@ -37,18 +37,21 @@ Server **không** lưu private key, email, SĐT, password. Mọi danh tính bind
 ## 2. Mobile / Web phân nhiệm
 
 ### Mobile (Aladin app — Tùng làm)
+
 - Sinh + giữ Hardware Key trong Secure Enclave (iOS) hoặc TEE (Android)
 - Quét QR từ web → ký challenge bằng Hardware Key
 - Hiển thị sign-request intent → user xem + biometric → ký
 - Đăng ký FCM/APNs token để nhận push notification
 
 ### Web (phoenixkey.me — Long làm)
+
 - Hiển thị QR cho login lần đầu
 - Hiển thị dashboard sau khi mobile approve
 - Tạo sign-request khi user thực hiện hành động (rotate key, seed export, ...)
 - Lắng nghe SSE để nhận kết quả từ mobile
 
 ### Server (this repo)
+
 - Verify Hardware Key signatures (BouncyCastle secp256k1)
 - Cardano integration (BloxBean): createDID, updateDID, resolve W3C DID Document
 - JWT session tokens (jjwt HS256)
@@ -81,33 +84,33 @@ Mobile                           Server                      Cardano
 
 ```
 Web                       Server                        Mobile
- │ POST /auth/session/init │                               │
+ │ POST /auth/session/init  │                               │
  ├────────────────────────▶│ Generate sessionId + 32B challenge
  │◀── { sid, challenge,    │                               │
- │     tempToken }         │                               │
- │                         │                               │
- │ GET /auth/session/      │                               │
- │   {sid}/stream (SSE)    │                               │
- │◀═════════════════════════│ (open stream, ping mỗi 30s)  │
- │                         │                               │
- │ Hiển thị QR             │                               │
- │  {sid, challenge,       │                               │
- │   domain, exp}          │                               │
- │                         │                               │
- │  ─────── User quét QR ──────────────────────────────▶  │
- │                         │  Mobile FaceID/vân tay       │
- │                         │  ký (challenge:domain:ts)    │
+ │     tempToken }          │                               │
+ │                          │                               │
+ │ GET /auth/session/       │                               │
+ │   {sid}/stream (SSE)     │                               │
+ │◀════════════════════════│ (open stream, ping mỗi 30s)   │
+ │                          │                               │
+ │ Hiển thị QR              │                               │
+ │  {sid, challenge,        │                               │
+ │   domain, exp}           │                               │
+ │                          │                               │
+ │  ─────── User quét QR ──────────────────────────────▶   │
+ │                         │  Mobile FaceID/vân tay         │
+ │                         │  ký (challenge:domain:ts)      │
  │                         │◀── POST /auth/session/        │
- │                         │      {sid}/approve            │
- │                         │ Verify signature + pubkey     │
- │                         │ Mint sessionToken (24h) +     │
- │                         │      linkedDeviceToken (30d)  │
+ │                         │      {sid}/approve             │
+ │                         │ Verify signature + pubkey      │
+ │                         │ Mint sessionToken (24h) +      │
+ │                         │      linkedDeviceToken (30d)   │
  │◀═══ SSE event "approved"╪── Save state                  │
- │     { sessionToken,     │                               │
- │       linkedDeviceToken,│                               │
- │       userDid }         │                               │
- │                         │                               │
- │ Vào dashboard           │                               │
+ │     { sessionToken,     │                                │
+ │       linkedDeviceToken,│                                │
+ │       userDid }         │                                │
+ │                         │                                │
+ │ Vào dashboard           │                                │
 ```
 
 Lần sau, web dùng `linkedDeviceToken` (localStorage 30d) → `POST /auth/session/push` để gửi push thay vì quét QR.
@@ -118,25 +121,25 @@ Lần sau, web dùng `linkedDeviceToken` (localStorage 30d) → `POST /auth/sess
 Web                       Server                        Mobile
  │ POST /sign/request      │                               │
  │  { sid, intent }        │                               │
- ├────────────────────────▶│ Save Redis (TTL 120s)         │
- │◀── { requestId }        │ pushService.notifySignRequest │
- │                         ├── push (FCM/APNs payload:    │
+ ├───────────────────────▶│ Save Redis (TTL 120s)         │
+ │◀── { requestId }       │ pushService.notifySignRequest │
+ │                         ├── push (FCM/APNs payload:     │
  │                         │      { requestId } only) ───▶│
  │                         │                               │
- │                         │  GET /sign/request/{id}      │
- │                         │◀──────────────────────────────│
+ │                         │  GET /sign/request/{id}       │
+ │                         │◀─────────────────────────────│
  │                         │ Trả intent payload            │
- │                         ├──────────────────────────────▶│
+ │                         ├─────────────────────────────▶│
  │                         │                               │
- │                         │  Mobile hiển thị intent:     │
+ │                         │  Mobile hiển thị intent:      │
  │                         │   "Ký 100 LAMP đến..."        │
  │                         │  User xác nhận biometric      │
  │                         │  Ký canonical intent JSON     │
  │                         │                               │
- │                         │◀── POST /sign/{id}/approve ───│
+ │                         │◀── POST /sign/{id}/approve ──│
  │                         │ Verify signature              │
  │                         │ Consume nonce (anti-replay)   │
- │◀═══ SSE event "signed" ─┤                               │
+ │◀══ SSE event "signed" ─┤                               │
  │   { signature }         │                               │
  │                         │                               │
  │ Submit signature to     │                               │
@@ -153,14 +156,14 @@ Mobile (key cũ)             Server                        Cardano
  │ Ký "PHOENIXKEY_ROTATE:"  │                                │
  │  + newPub + nonce        │                                │
  │  bằng KEY CŨ             │                                │
- ├── POST /keys/rotate ────▶│                                │
+ ├── POST /keys/rotate ───▶│                                │
  │                          │ Verify old key signature       │
  │                          │ Consume nonce                  │
- │                          ├── BloxBean updateDID ─────────▶│
+ │                          ├── BloxBean updateDID ────────▶│
  │                          │                  (consume UTxO cũ + tạo UTxO mới)
- │                          │◀── new tx hash ────────────────│
+ │                          │◀── new tx hash ───────────────│
  │                          │ DB: revoke key cũ + insert key mới
- │◀── { txHash, newKeyId } ─┤                                │
+ │◀─ { txHash, newKeyId } ─┤                                │
 ```
 
 User DID **không đổi** (vẫn là genesis tx hash) — chỉ Hardware Key đổi.
@@ -169,35 +172,35 @@ User DID **không đổi** (vẫn là genesis tx hash) — chỉ Hardware Key đ
 
 ## 4. Endpoints (23)
 
-| Group | Method | Path | Purpose |
-|---|---|---|---|
-| **Identity** | POST | `/identity/register` | Mobile genesis: tạo DID + insert user |
-| | GET | `/identity/{did}/pubkey` | Internal verify |
-| | GET | `/identity/{did}/status` | Dashboard banner state |
-| | GET | `/identity/{did}/document` | W3C DID Document từ Cardano |
-| | GET | `/identity/health` | Health snapshot (seed/key/guardian count) |
-| | GET | `/identity/nodes` | LampNet node map (MVP stub) |
-| **Session** | POST | `/auth/session/init` | Web tạo QR challenge |
-| | GET | `/auth/session/{id}/stream` | SSE channel |
-| | GET | `/auth/session/{id}/status` | Fallback poll |
-| | POST | `/auth/session/{id}/approve` | Mobile approve sau khi ký |
-| | POST | `/auth/session/push` | Web → mobile push (linked device) |
-| **Sign Request** | POST | `/sign/request` | Web tạo sign request |
-| | GET | `/sign/request/{id}` | Mobile fetch payload |
-| | POST | `/sign/{id}/approve` | Mobile ký + relay về web qua SSE |
-| | POST | `/sign/{id}/cancel` | Web huỷ |
-| **Keys** | POST | `/keys/authorize` | Thêm thiết bị/key mới |
-| | POST | `/keys/revoke` | Thu hồi key |
-| | POST | `/keys/rotate` | Rotate Hardware Key (Cardano updateDID) |
-| **Guardian** | POST | `/guardians/add` | Thêm guardian |
-| | POST | `/guardians/remove` | Xoá guardian |
-| **Misc** | POST | `/seed/export-request` | Trigger Seed Phrase export flow |
-| | GET | `/activity-logs` | Audit trail (cursor pagination) |
-| | GET | `/tx/estimate` | Cardano fee estimate |
-| | POST | `/devices/register` | Mobile FCM/APNs token |
-| | POST | `/support/session/init` | Get LAMP support (MVP stub) |
-| **Internal** | POST | `/internal/sync-taad` | Indexer Worker only |
-| **Health** | GET | `/actuator/health` | Spring Boot health check |
+| Group            | Method | Path                         | Purpose                                   |
+| ---------------- | ------ | ---------------------------- | ----------------------------------------- |
+| **Identity**     | POST   | `/identity/register`         | Mobile genesis: tạo DID + insert user     |
+|                  | GET    | `/identity/{did}/pubkey`     | Internal verify                           |
+|                  | GET    | `/identity/{did}/status`     | Dashboard banner state                    |
+|                  | GET    | `/identity/{did}/document`   | W3C DID Document từ Cardano               |
+|                  | GET    | `/identity/health`           | Health snapshot (seed/key/guardian count) |
+|                  | GET    | `/identity/nodes`            | LampNet node map (MVP stub)               |
+| **Session**      | POST   | `/auth/session/init`         | Web tạo QR challenge                      |
+|                  | GET    | `/auth/session/{id}/stream`  | SSE channel                               |
+|                  | GET    | `/auth/session/{id}/status`  | Fallback poll                             |
+|                  | POST   | `/auth/session/{id}/approve` | Mobile approve sau khi ký                 |
+|                  | POST   | `/auth/session/push`         | Web → mobile push (linked device)         |
+| **Sign Request** | POST   | `/sign/request`              | Web tạo sign request                      |
+|                  | GET    | `/sign/request/{id}`         | Mobile fetch payload                      |
+|                  | POST   | `/sign/{id}/approve`         | Mobile ký + relay về web qua SSE          |
+|                  | POST   | `/sign/{id}/cancel`          | Web huỷ                                   |
+| **Keys**         | POST   | `/keys/authorize`            | Thêm thiết bị/key mới                     |
+|                  | POST   | `/keys/revoke`               | Thu hồi key                               |
+|                  | POST   | `/keys/rotate`               | Rotate Hardware Key (Cardano updateDID)   |
+| **Guardian**     | POST   | `/guardians/add`             | Thêm guardian                             |
+|                  | POST   | `/guardians/remove`          | Xoá guardian                              |
+| **Misc**         | POST   | `/seed/export-request`       | Trigger Seed Phrase export flow           |
+|                  | GET    | `/activity-logs`             | Audit trail (cursor pagination)           |
+|                  | GET    | `/tx/estimate`               | Cardano fee estimate                      |
+|                  | POST   | `/devices/register`          | Mobile FCM/APNs token                     |
+|                  | POST   | `/support/session/init`      | Get LAMP support (MVP stub)               |
+| **Internal**     | POST   | `/internal/sync-taad`        | Indexer Worker only                       |
+| **Health**       | GET    | `/actuator/health`           | Spring Boot health check                  |
 
 Full reference: [API.md](./API.md). Postman collection: [docs/PhoenixKey.postman_collection.json](./docs/PhoenixKey.postman_collection.json).
 
@@ -233,17 +236,17 @@ curl http://localhost:8080/api/v1/auth/session/init -X POST | jq
 
 ## 6. Tech stack
 
-| Layer | Lib |
-|---|---|
-| Runtime | Java 21, Spring Boot 3.3 |
-| DB | PostgreSQL 16 + Flyway 10 |
-| Cache | Redis 7 (Lettuce) |
-| Secrets | HashiCorp Vault (KMS) |
+| Layer   | Lib                                                    |
+| ------- | ------------------------------------------------------ |
+| Runtime | Java 21, Spring Boot 3.3                               |
+| DB      | PostgreSQL 16 + Flyway 10                              |
+| Cache   | Redis 7 (Lettuce)                                      |
+| Secrets | HashiCorp Vault (KMS)                                  |
 | Cardano | BloxBean cardano-client-lib 0.6.4 + Blockfrost backend |
-| Crypto | BouncyCastle (secp256k1 ECDSA verify) |
-| JWT | jjwt 0.12 (HS256) |
-| Push | Stub (FCM/APNs sẽ wire ở Phase H) |
-| Tools | exec-maven-plugin, dotenv-java |
+| Crypto  | BouncyCastle (secp256k1 ECDSA verify)                  |
+| JWT     | jjwt 0.12 (HS256)                                      |
+| Push    | Stub (FCM/APNs sẽ wire ở Phase H)                      |
+| Tools   | exec-maven-plugin, dotenv-java                         |
 
 ---
 
@@ -261,13 +264,13 @@ curl http://localhost:8080/api/v1/auth/session/init -X POST | jq
 
 ## 8. Documentation
 
-| File | Purpose |
-|---|---|
-| [API.md](./API.md) | Endpoint reference đầy đủ |
-| [PLAN-Server.md](./PLAN-Server.md) | Migration plan từ PhoenixKey-Database → Server |
-| [docs/PhoenixKey_Interface.md](./docs/PhoenixKey_Interface.md) | UI specification v1.4.3 |
-| [docs/HashiCorpVault.md](./docs/HashiCorpVault.md) | Vault setup guide |
-| [docs/PhoenixKey.postman_collection.json](./docs/PhoenixKey.postman_collection.json) | Postman collection |
+| File                                                                                 | Purpose                                        |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------- |
+| [API.md](./API.md)                                                                   | Endpoint reference đầy đủ                      |
+| [PLAN-Server.md](./PLAN-Server.md)                                                   | Migration plan từ PhoenixKey-Database → Server |
+| [docs/PhoenixKey_Interface.md](./docs/PhoenixKey_Interface.md)                       | UI specification v1.4.3                        |
+| [docs/HashiCorpVault.md](./docs/HashiCorpVault.md)                                   | Vault setup guide                              |
+| [docs/PhoenixKey.postman_collection.json](./docs/PhoenixKey.postman_collection.json) | Postman collection                             |
 
 ---
 
