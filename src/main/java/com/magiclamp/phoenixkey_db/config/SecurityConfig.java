@@ -9,7 +9,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Security configuration cho PhoenixKey Database.
+ * Security configuration cho PhoenixKey.
  *
  * Nguyên tắc:
  * - Stateless by default — không lưu session trên server
@@ -17,7 +17,7 @@ import org.springframework.security.web.SecurityFilterChain;
  * - DB chỉ expose actuator health endpoint cho monitoring
  *
  * Lưu ý:
- * PhoenixKey Database là backend service, không phải public-facing API.
+ * PhoenixKey là backend service, không phải public-facing API.
  * Security ở đây chủ yếu để:
  * - Block direct public access
  * - Cho phép API Gateway call vào
@@ -39,7 +39,7 @@ public class SecurityConfig {
 
                 // Cấu hình quyền truy cập
                 //
-                // PhoenixKey Database là internal backend service — không public-facing.
+                // PhoenixKey là internal backend service — không public-facing.
                 // JWT verification được thực hiện ở API Gateway (NestJS) trước khi request
                 // đến đây. DB layer trust all requests đến từ internal network.
                 //

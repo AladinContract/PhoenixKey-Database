@@ -1,5 +1,5 @@
 # ============================================================
-# PhoenixKey Database — Multi-stage Dockerfile
+# PhoenixKey — Multi-stage Dockerfile
 # Stage 1: Build JAR với Maven
 # Stage 2: Run với JRE slim
 # ============================================================

@@ -30,11 +30,11 @@ public class OpenApiConfig {
     public OpenAPI phoenixKeyOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("PhoenixKey Database API")
+                        .title("PhoenixKey API")
                         .version("v1.0")
                         .description(
                                 """
-                                        **PhoenixKey Database** — Identity Routing & Cache Hub.
+                                        **PhoenixKey** — Identity Routing & Cache Hub.
 
                                         Vai trò duy nhất: trả lời nhanh câu hỏi *"User này là ai?"* và *"Khóa này có hợp lệ không?"*.
 
