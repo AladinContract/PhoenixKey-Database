@@ -13,9 +13,9 @@
 
 | Type            | Lifetime | sub       | Issued by                    | Used for                     |
 | --------------- | -------- | --------- | ---------------------------- | ---------------------------- |
-| `temp`          | 5 phút   | sessionId | `/auth/session/init`         | SSE stream + status fallback |
-| `session`       | 24 giờ   | userDid   | `/auth/session/{id}/approve` | API mutations cho user       |
-| `linked-device` | 30 ngày  | userDid   | `/auth/session/{id}/approve` | Web → push thay QR           |
+| `temp`          | 5 phút   | session_id | `/auth/session/init`         | SSE stream + status fallback |
+| `session`       | 24 giờ   | user_did   | `/auth/session/{id}/approve` | API mutations cho user       |
+| `linked-device` | 30 ngày  | user_did   | `/auth/session/{id}/approve` | Web → push thay QR           |
 
 ---
 
@@ -29,16 +29,16 @@ Mobile genesis flow — sinh DID Document trên Cardano.
 
 ```json
 {
-  "publicKeyHex": "02b5b66150...74999e257",
-  "keyOrigin": "SECURE_ENCLAVE",
-  "keyRole": "owner",
-  "addedBySignature": "3044022016...e2d42b"
+  "public_key_hex": "02b5b66150...74999e257",
+  "key_origin": "SECURE_ENCLAVE",
+  "key_role": "owner",
+  "added_by_signature": "3044022016...e2d42b"
 }
 ```
 
-- `addedBySignature`: DER ECDSA secp256k1 chữ ký trên `"PHOENIXKEY_GENESIS:" + publicKeyHex`
+- `added_by_signature`: DER ECDSA secp256k1 chữ ký trên `"PHOENIXKEY_GENESIS:" + public_key_hex`
 
-**Response:** `{ userId, userDid, txHash }` — `userDid = did:cardano:<network>:<txHash>`
+**Response:** `{ user_id, user_did, tx_hash }` — `user_did = did:cardano:<network>:<tx_hash>`
 
 ### GET /identity/{did}/pubkey
 
@@ -60,10 +60,10 @@ W3C DID Document đầy đủ — đọc inline datum từ Cardano qua Blockfros
 
 ```json
 {
-  "seedExported": false,
-  "exportedAt": null,
-  "activeKeyCount": 1,
-  "guardianCount": 0
+  "seed_exported": false,
+  "exported_at": null,
+  "active_key_count": 1,
+  "guardian_count": 0
 }
 ```
 
@@ -79,24 +79,24 @@ LampNet node map. **MVP stub:** trả 12 mock nodes (SG, JP, US, ...).
 
 Web khởi tạo session.
 
-**Response:** `{ sessionId, challenge (32B hex), tempToken, expiresAt }`
+**Response:** `{ session_id, challenge (32B hex), temp_token, expires_at }`
 
 QR payload encode:
 
 ```json
-{ "v": 1, "sid": "<sessionId>", "ch": "<challenge>", "dom": "phoenixkey.me", "exp": <expiresAt> }
+{ "v": 1, "sid": "<session_id>", "ch": "<challenge>", "dom": "phoenixkey.me", "exp": <expires_at> }
 ```
 
 ### GET /auth/session/{id}/stream
 
-🔒 Bearer `tempToken`. SSE stream — emit event `approved` khi mobile xác nhận.
+🔒 Bearer `temp_token`. SSE stream — emit event `approved` khi mobile xác nhận.
 Heartbeat: SSE comment `:ping` mỗi 30s (chống proxy timeout).
 
 ### GET /auth/session/{id}/status
 
-🔒 Bearer `tempToken`. Fallback poll sau khi SSE reconnect.
+🔒 Bearer `temp_token`. Fallback poll sau khi SSE reconnect.
 
-**Response:** `{ sessionId, status: "pending"|"approved"|"rejected"|"expired", sessionToken?, linkedDeviceToken?, userDid? }`
+**Response:** `{ session_id, status: "pending"|"approved"|"rejected"|"expired", session_token?, linked_device_token?, user_did? }`
 
 ### POST /auth/session/{id}/approve
 
@@ -106,8 +106,8 @@ Mobile gọi sau khi quét QR + biometric + ký challenge.
 
 ```json
 {
-  "userDid": "did:cardano:preprod:...",
-  "publicKeyHex": "02...",
+  "user_did": "did:cardano:preprod:...",
+  "public_key_hex": "02...",
   "signature": "3044...",
   "domain": "phoenixkey.me",
   "timestamp": 1714201200
@@ -117,13 +117,13 @@ Mobile gọi sau khi quét QR + biometric + ký challenge.
 - `signature`: DER trên `challenge + ":" + domain + ":" + timestamp`
 - `timestamp` skew tolerance: ±60s
 
-**Response:** `{ status: "approved", linkedDeviceToken }`. SSE event `approved` emit về web.
+**Response:** `{ status: "approved", linked_device_token }`. SSE event `approved` emit về web.
 
 ### POST /auth/session/push
 
 Web → backend → mobile push (linked device flow).
 
-**Request:** `{ sessionId, linkedDeviceToken }`
+**Request:** `{ session_id, linked_device_token }`
 
 ---
 
@@ -137,30 +137,30 @@ Web → backend → mobile push (linked device flow).
 
 ```json
 {
-  "sessionId": "<current web sid>",
+  "session_id": "<current web sid>",
   "intent": {
     "type": "TRANSFER",
     "body": { "amount": "100 LAMP", "to": "addr1q..." },
     "domain": "phoenixkey.me",
-    "appId": "phoenixkey-web-v1",
+    "app_id": "phoenixkey-web-v1",
     "nonce": "<32B hex>",
     "timestamp": 1714201200,
-    "displayText": "Chuyển 100 LAMP đến addr1q..."
+    "display_text": "Chuyển 100 LAMP đến addr1q..."
   }
 }
 ```
 
-**Response:** `{ requestId, expiresAt }`
+**Response:** `{ request_id, expires_at }`
 
 ### GET /sign/request/{id}
 
-Mobile fetch chi tiết sau khi nhận push (push payload chỉ chứa `requestId`).
+Mobile fetch chi tiết sau khi nhận push (push payload chỉ chứa `request_id`).
 
 ### POST /sign/{id}/approve
 
 Mobile ký canonical intent JSON (keys sorted) → server verify → emit SSE `signed` về web.
 
-**Request:** `{ publicKeyHex, signature }`
+**Request:** `{ public_key_hex, signature }`
 
 ### POST /sign/{id}/cancel
 
@@ -174,7 +174,7 @@ Mobile ký canonical intent JSON (keys sorted) → server verify → emit SSE `s
 
 Thêm device/key mới. Yêu cầu chữ ký từ root key.
 
-**Request:** `{ userDid, publicKeyHex, keyOrigin, keyRole, nonce, addedBySignature }`
+**Request:** `{ user_did, public_key_hex, key_origin, key_role, nonce, added_by_signature }`
 
 ### POST /keys/revoke
 
@@ -184,9 +184,9 @@ Soft revoke (status → `revoked`). Re-authorize được.
 
 Cardano updateDID + DB swap. Old key ký `"PHOENIXKEY_ROTATE:" + newPubkey + ":" + nonce`.
 
-**Request:** `{ userDid, newPublicKeyHex, keyOrigin, nonce, oldKeySignature }`
+**Request:** `{ user_did, new_public_key_hex, key_origin, nonce, old_key_signature }`
 
-**Response:** `{ txHash, newKeyId }`
+**Response:** `{ tx_hash, new_key_id }`
 
 ⚠ **MVP caveat**: fee wallet ký full Cardano tx (vi phạm Zero-Trust spec §11). Phase H sẽ yêu cầu mobile cung cấp partial-signed CBOR.
 
@@ -198,7 +198,7 @@ Cardano updateDID + DB swap. Old key ký `"PHOENIXKEY_ROTATE:" + newPubkey + ":"
 
 Thêm guardian (cần đạt threshold ≥ 3 cho Social Recovery).
 
-**Request:** `{ userDid, guardianDid, nonce, proofSignature }`
+**Request:** `{ user_did, guardian_did, nonce, proof_signature }`
 
 ### POST /guardians/remove
 
@@ -212,7 +212,7 @@ Soft revoke guardian.
 
 🔒 Bearer `session_token`. Trigger Seed Phrase export flow.
 
-**Request:** `{ sessionId, displayText? }`
+**Request:** `{ session_id, display_text? }`
 
 Server tạo SignRequest type `SEED_EXPORT`. Khi mobile approve → set `users.seed_exported_at = NOW()` (spec §9.5 dashboard cảnh báo).
 
@@ -227,7 +227,7 @@ Server tạo SignRequest type `SEED_EXPORT`. Khi mobile approve → set `users.s
 - `filter`: action name (vd `key_rotated`)
 - `range`: `7d` | `30d` | `all` (default `all`)
 
-**Response:** `{ logs: [...], nextCursor? }`. Zero-PII: userId truncate 8 char, ip_hash mask.
+**Response:** `{ logs: [...], next_cursor? }`. Zero-PII: user_id truncate 8 char, ip_hash mask.
 
 ### GET /tx/estimate?type=...
 
@@ -237,7 +237,7 @@ Cardano fee estimate. **MVP hardcode**: 12 MAGIC cho key_rotation/createDID/upda
 
 🔒 Bearer `session_token`. Mobile lưu push token sau khi login.
 
-**Request:** `{ platform: "ios"|"android", fcmToken?, apnsToken? }` — cần ít nhất 1 token.
+**Request:** `{ platform: "ios"|"android", fcm_token?, apns_token? }` — cần ít nhất 1 token.
 
 ### POST /support/session/init
 
@@ -251,7 +251,7 @@ Get LAMP support session. **MVP stub:** trả URL placeholder ProofChat.
 
 Indexer Worker process riêng (out of scope) gọi để cập nhật `onchain_taad_state_cache`.
 
-**Request:** `{ userDid, currentControllerPkh, sequence, status, recoveryDeadline?, lastSyncedBlock, blockHash }`
+**Request:** `{ user_did, current_controller_pkh, sequence, status, recovery_deadline?, last_synced_block, block_hash }`
 
 ---
 

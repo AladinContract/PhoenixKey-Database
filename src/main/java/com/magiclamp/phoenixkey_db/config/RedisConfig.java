@@ -18,7 +18,7 @@ import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import java.time.Duration;
 
 /**
- * Redis configuration cho PhoenixKey Database.
+ * Redis configuration cho PhoenixKey.
  *
  * Ba mục đích sử dụng Redis:
  * - {@code otp:*} — Lưu mã OTP, TTL 5 phút

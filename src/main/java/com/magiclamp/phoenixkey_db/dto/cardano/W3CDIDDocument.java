@@ -2,6 +2,8 @@ package com.magiclamp.phoenixkey_db.dto.cardano;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import java.util.List;
 
@@ -12,8 +14,13 @@ import java.util.List;
  *
  * <p>Lưu trữ: serialize JSON → đặt vào inline datum của UTxO trên Cardano.
  * Genesis tx hash của UTxO = ID nhúng vào DID string.</p>
+ *
+ * <p><b>Lưu ý naming:</b> W3C DID Core BẮT BUỘC camelCase
+ * (verificationMethod, assertionMethod, capabilityInvocation). Class này
+ * override naming strategy global SNAKE_CASE để giữ W3C compliance.</p>
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonNaming(PropertyNamingStrategies.LowerCamelCaseStrategy.class)
 public record W3CDIDDocument(
         @JsonProperty("@context") List<String> context,
         String id,

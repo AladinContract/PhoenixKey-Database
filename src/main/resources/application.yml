@@ -2,6 +2,12 @@ spring:
   application:
     name: phoenixkey-server
 
+  # Snake_case JSON output cho mọi DTO. Java records giữ camelCase trong code
+  # (Java idiomatic), Jackson tự convert khi serialize/deserialize. Match spec
+  # PhoenixKey_Interface.md v1.4.3 + Web Interface + SDK convention.
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/phoenixkey
     username: ${DB_USERNAME:phoenixkey}
