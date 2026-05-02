@@ -31,7 +31,7 @@ services:
   # ──────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
-    container_name: phoenixkey-db-postgres
+    container_name: phoenixkey-server-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-phoenixkey}
@@ -68,7 +68,7 @@ services:
   # ──────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: phoenixkey-db-redis
+    container_name: phoenixkey-server-redis
     restart: unless-stopped
     environment:
       TZ: UTC
@@ -114,7 +114,7 @@ services:
   # ──────────────────────────────────────────────────────────
   vault:
     image: hashicorp/vault:1.17
-    container_name: phoenixkey-db-vault
+    container_name: phoenixkey-server-vault
     restart: unless-stopped
     cap_add:
       - IPC_LOCK
@@ -146,7 +146,7 @@ services:
   # ──────────────────────────────────────────────────────────
   vault-seed:
     image: hashicorp/vault:1.17
-    container_name: phoenixkey-db-vault-seed
+    container_name: phoenixkey-server-vault-seed
     depends_on:
       vault:
         condition: service_healthy
@@ -172,7 +172,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: phoenixkey-db-spring-app
+    container_name: phoenixkey-server-spring-app
     restart: unless-stopped
     ports:
       - "${APP_BIND:-0.0.0.0}:${APP_PORT:-8084}:8080"
@@ -223,5 +223,5 @@ volumes:
 # ──────────────────────────────────────────────────────────
 networks:
   default:
-    name: phoenixkey-db-network
+    name: phoenixkey-server-network
     driver: bridge
