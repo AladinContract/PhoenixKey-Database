@@ -11,8 +11,8 @@
 
 ## Token types
 
-| Type            | Lifetime | sub       | Issued by                    | Used for                     |
-| --------------- | -------- | --------- | ---------------------------- | ---------------------------- |
+| Type            | Lifetime | sub        | Issued by                    | Used for                     |
+| --------------- | -------- | ---------- | ---------------------------- | ---------------------------- |
 | `temp`          | 5 phút   | session_id | `/auth/session/init`         | SSE stream + status fallback |
 | `session`       | 24 giờ   | user_did   | `/auth/session/{id}/approve` | API mutations cho user       |
 | `linked-device` | 30 ngày  | user_did   | `/auth/session/{id}/approve` | Web → push thay QR           |
