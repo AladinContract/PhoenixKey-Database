@@ -43,4 +43,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             "ON u.userDid = c.userDid " +
             "WHERE c.status = 'RECOVERING'")
     long countRecoveringUsers();
+
+    @Query("SELECT u FROM User u WHERE lower(u.username) = lower(:username)")
+    Optional<User> findByUsernameLower(@Param("username") String username);
+
 }
