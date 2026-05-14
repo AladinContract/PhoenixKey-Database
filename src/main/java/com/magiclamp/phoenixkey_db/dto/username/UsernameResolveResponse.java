@@ -1,10 +1,10 @@
 package com.magiclamp.phoenixkey_db.dto.username;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
+/**
+ * Public lookup result: username → DID.
+ * Jackson global SNAKE_CASE handles field naming — no @JsonProperty needed.
+ */
 public record UsernameResolveResponse(
         String username,
-
-        @JsonProperty("user_did")
         String userDid
 ) {}
