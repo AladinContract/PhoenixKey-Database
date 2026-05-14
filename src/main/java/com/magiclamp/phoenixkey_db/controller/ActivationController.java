@@ -92,12 +92,14 @@ public class ActivationController {
                 .code(1000).result(activationService.getStatus(activationId)).build());
     }
 
-    @Operation(summary = "SSE stream cho activation lifecycle events")
+    @Operation(summary = "SSE stream cho activation lifecycle events", description = """
+            Public — activation_id là opaque UUID đủ entropy (128 bit). Bất kỳ ai
+            có activation_id đều listen được, nhưng chỉ user khởi tạo + Genie được
+            assign mới biết id này (qua initiate response + push payload).
+            """)
     @GetMapping(value = "/{id}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter events(
-            @Parameter(description = "activation_id") @PathVariable("id") UUID activationId,
-            @RequestHeader("Authorization") String authorization) {
-        // Bearer parsing handled in interceptor (auth filter) — here we just register
+            @Parameter(description = "activation_id") @PathVariable("id") UUID activationId) {
         return eventBus.register(activationId.toString());
     }
 
