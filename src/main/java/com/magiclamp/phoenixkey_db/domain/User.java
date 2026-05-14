@@ -18,6 +18,8 @@ import java.util.UUID;
  * - id = UUIDv7 do server tạo (timestamp-prefixed, tốt cho B-Tree insert)
  * - user_did = DID string bất biến suốt vòng đời user (không đổi kể cả khi xoay
  *   khóa). Format: {@code did:cardano:<network>:<txHash>}
+ * - username = lookup shortcut tùy chọn — KHÔNG thay thế DID là anchor định danh.
+ *   Username chỉ dùng để tìm DID nhanh, không dùng làm auth credential.
  * - {@code seed_exported_at} đánh dấu user đã trích xuất Seed Phrase (spec §9.5)
  *   — dashboard banner cảnh báo health thấp đến khi user thực hiện Key Rotation.
  *
@@ -72,6 +74,32 @@ public class User {
      */
     @Column(name = "seed_exported_at")
     private OffsetDateTime seedExportedAt;
+
+    // ──────────────────────────────────────────────────────────────
+    // [V10] Username — lookup shortcut tùy chọn
+    // ──────────────────────────────────────────────────────────────
+
+    /**
+     * Username tùy chọn — 3–32 ký tự [a-z0-9_], lưu lowercase.
+     *
+     * KHÔNG là auth credential — chỉ là lookup shortcut để tìm DID.
+     * Flow đăng nhập bằng username:
+     *   1. Web: GET /identity/by-username/{username} → nhận DID
+     *   2. Web: init session với DID đó → hiển thị QR
+     *   3. Mobile: approve QR bằng Hardware Key (biometric)
+     *
+     * Cooldown 30 ngày sau khi đặt (enforce tại service layer).
+     * Reserved names (admin, system, ...) enforce tại service layer.
+     */
+    @Column(name = "username", length = 32, unique = true)
+    private String username;
+
+    /**
+     * Thời điểm đặt username lần cuối.
+     * Dùng để enforce 30-day cooldown đổi username.
+     */
+    @Column(name = "username_set_at")
+    private OffsetDateTime usernameSetAt;
 
     // ──────────────────────────────────────────────────────────────
     // Relations

@@ -59,6 +59,15 @@ public enum ErrorCode {
     /** DID đã tồn tại — đã đăng ký rồi. */
     USER_DID_ALREADY_EXISTS(2003, "DID already registered", HttpStatus.CONFLICT),
 
+    /** Username is a reserved system name (admin, system, ...). */
+    USERNAME_RESERVED(2004, "Username is reserved", HttpStatus.BAD_REQUEST),
+
+    /** Username already taken by another user. */
+    USERNAME_TAKEN(2005, "Username already taken", HttpStatus.CONFLICT),
+
+    /** Username change still in 30-day cooldown window. */
+    USERNAME_COOLDOWN(2006, "Username change cooldown active", HttpStatus.CONFLICT),
+
     // ──────────────────────────────────────────────────────────────
     // 3xxx — Authorized Key / Thiết bị
     // ──────────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ package com.magiclamp.phoenixkey_db.repository;
 import com.magiclamp.phoenixkey_db.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -43,4 +44,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             "ON u.userDid = c.userDid " +
             "WHERE c.status = 'RECOVERING'")
     long countRecoveringUsers();
+
+    @Query("SELECT u FROM User u WHERE lower(u.username) = lower(:username)")
+    Optional<User> findByUsernameLower(@Param("username") String username);
+
 }
