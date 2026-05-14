@@ -33,6 +33,28 @@ public enum ErrorCode {
     /** Session đã được approve trước đó — không thể approve lại. */
     SESSION_ALREADY_APPROVED(1303, "Session already approved", HttpStatus.CONFLICT),
 
+    /** Missing/invalid Bearer token. */
+    UNAUTHORIZED(1304, "Unauthorized", HttpStatus.UNAUTHORIZED),
+
+    // ──────────────────────────────────────────────────────────────
+    // 131x — Activation package flow
+    // ──────────────────────────────────────────────────────────────
+
+    NO_GENIE_AVAILABLE(1310, "No Genie available", HttpStatus.SERVICE_UNAVAILABLE),
+    ACTIVATION_NOT_FOUND(1311, "Activation not found", HttpStatus.NOT_FOUND),
+    ACTIVATION_EXPIRED(1312, "Activation expired", HttpStatus.GONE),
+    ACTIVATION_INVALID_STATE(1313, "Activation in invalid state", HttpStatus.CONFLICT),
+    ACTIVATION_NOT_AUTHORIZED(1314, "Not authorized for this activation", HttpStatus.FORBIDDEN),
+    PROOFCHAT_UNAVAILABLE(1315, "ProofChat service unavailable", HttpStatus.SERVICE_UNAVAILABLE),
+
+    // ──────────────────────────────────────────────────────────────
+    // 132x — Wallet / MAGIC
+    // ──────────────────────────────────────────────────────────────
+
+    WALLET_NOT_REGISTERED(1320, "Wallet address not registered", HttpStatus.BAD_REQUEST),
+    MAGIC_AMOUNT_TOO_SMALL(1321, "MAGIC amount below minimum", HttpStatus.BAD_REQUEST),
+    GENIE_INSUFFICIENT_BALANCE(1322, "Genie wallet balance insufficient", HttpStatus.BAD_REQUEST),
+
     // ──────────────────────────────────────────────────────────────
     // 14xx — Sign Request (web ↔ mobile relay)
     // ──────────────────────────────────────────────────────────────
@@ -108,6 +130,15 @@ public enum ErrorCode {
 
     /** Guardian đã bị revoke. */
     GUARDIAN_ALREADY_REVOKED(4005, "Guardian already revoked", HttpStatus.CONFLICT),
+
+    // ──────────────────────────────────────────────────────────────
+    // 41xx — Recovery flow
+    // ──────────────────────────────────────────────────────────────
+
+    RECOVERY_NOT_FOUND(4100, "Recovery attempt not found", HttpStatus.NOT_FOUND),
+    RECOVERY_INVALID_STATE(4101, "Recovery in invalid state", HttpStatus.CONFLICT),
+    RECOVERY_INSUFFICIENT_SIGS(4102, "Need at least 2 of 3 guardian signatures", HttpStatus.BAD_REQUEST),
+    RECOVERY_TIMELOCK_ACTIVE(4103, "Recovery timelock has not elapsed", HttpStatus.CONFLICT),
 
     // ──────────────────────────────────────────────────────────────
     // 5xxx — TAAD / On-chain State

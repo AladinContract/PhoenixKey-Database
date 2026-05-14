@@ -13,6 +13,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import com.magiclamp.phoenixkey_db.domain.ActivityLog;
 import com.magiclamp.phoenixkey_db.repository.ActivityLogRepository;
+import com.magiclamp.phoenixkey_db.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ActivityLogService {
 
     private final ActivityLogRepository activityLogRepository;
+    private final UserRepository userRepository;
 
     /** Metadata key for SHA-256-hashed client IP (Zero-PII per spec §10.1). */
     private static final String IP_HASH_KEY = "ip_hash";
@@ -80,6 +82,20 @@ public class ActivityLogService {
      */
     public void log(UUID userId, String action, String key, String value) {
         save(userId, action, Map.of(key, value));
+    }
+
+    /**
+     * Convenience overload — log by DID string. Looks up user lazily.
+     * Use this from services that only have the DID handy (e.g. ActivationService,
+     * RecoveryService, BalanceService).
+     */
+    public void log(String userDid, String action, String detail) {
+        UUID userId = userRepository.findByUserDid(userDid)
+                .map(com.magiclamp.phoenixkey_db.domain.User::getId)
+                .orElse(null);
+        save(userId, action, detail == null || detail.isEmpty()
+                ? Map.of()
+                : Map.of("detail", detail));
     }
 
     private void save(UUID userId, String action, Map<String, Object> metadata) {

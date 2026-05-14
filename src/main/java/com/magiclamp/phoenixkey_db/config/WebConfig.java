@@ -1,11 +1,15 @@
 package com.magiclamp.phoenixkey_db.config;
 
+import com.magiclamp.phoenixkey_db.security.AuthArgumentResolver;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * CORS config cho web client (phoenixkey.me + dev).
@@ -18,10 +22,18 @@ import java.util.Arrays;
  * header được expose.</p>
  */
 @Configuration
+@RequiredArgsConstructor
 public class WebConfig implements WebMvcConfigurer {
+
+    private final AuthArgumentResolver authArgumentResolver;
 
     @Value("${phoenixkey.cors.allowed-origins:http://localhost:3000,https://phoenixkey.me,https://staging.phoenixkey.me}")
     private String allowedOrigins;
+
+    @Override
+    public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+        resolvers.add(authArgumentResolver);
+    }
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {

@@ -102,6 +102,31 @@ public class User {
     private OffsetDateTime usernameSetAt;
 
     // ──────────────────────────────────────────────────────────────
+    // [V11] Wallet + MAGIC accrual + entity type
+    // ──────────────────────────────────────────────────────────────
+
+    /** Bech32 Shelley address derived on mobile from wallet seed. */
+    @Column(name = "wallet_address", length = 150, unique = true)
+    private String walletAddress;
+
+    /** "person" | "org" | "device" | ... (default "person"). */
+    @Column(name = "entity_type", length = 20, nullable = false)
+    @Builder.Default
+    private String entityType = "person";
+
+    /** Last slot at which MAGIC accrual was computed/claimed. */
+    @Column(name = "last_accrual_slot")
+    private Long lastAccrualSlot;
+
+    /** Cardano tx hash of the TAAD UTxO that created this DID. */
+    @Column(name = "genesis_tx_hash", length = 64)
+    private String genesisTxHash;
+
+    /** Slot at which this DID was created. */
+    @Column(name = "genesis_slot")
+    private Long genesisSlot;
+
+    // ──────────────────────────────────────────────────────────────
     // Relations
     // ──────────────────────────────────────────────────────────────
 
