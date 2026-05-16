@@ -42,6 +42,16 @@ public class PushServiceStub implements PushService {
         logStub("seed-export", userDid, requestId);
     }
 
+    @Override
+    public void notifyActivationRequest(String genieDid, String activationId) {
+        logStub("activation-request", genieDid, activationId);
+    }
+
+    @Override
+    public void notifyActivationPaymentReceived(String genieDid, String activationId) {
+        logStub("activation-payment", genieDid, activationId);
+    }
+
     private void logStub(String type, String userDid, String correlationId) {
         List<DeviceToken> devices = deviceTokenRepository.findByUserDid(userDid);
         if (devices.isEmpty()) {
