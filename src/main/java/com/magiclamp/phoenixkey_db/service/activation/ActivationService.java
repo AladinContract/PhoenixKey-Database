@@ -1,6 +1,6 @@
 package com.magiclamp.phoenixkey_db.service.activation;
 
-import com.magiclamp.phoenixkey_db.dto.activation.*;
+import com.magiclamp.phoenixkey_db.dto.activation.ActivationDtos.*;
 
 import java.util.UUID;
 

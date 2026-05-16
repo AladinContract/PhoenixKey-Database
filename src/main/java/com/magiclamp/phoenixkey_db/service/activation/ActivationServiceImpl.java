@@ -1,7 +1,8 @@
 package com.magiclamp.phoenixkey_db.service.activation;
 
 import com.magiclamp.phoenixkey_db.domain.*;
-import com.magiclamp.phoenixkey_db.dto.activation.*;
+import com.magiclamp.phoenixkey_db.dto.activation.ActivationDtos.*;
+import com.magiclamp.phoenixkey_db.dto.activation.ActivationEvent;
 import com.magiclamp.phoenixkey_db.exception.AppException;
 import com.magiclamp.phoenixkey_db.exception.ErrorCode;
 import com.magiclamp.phoenixkey_db.repository.ActivationRepository;
