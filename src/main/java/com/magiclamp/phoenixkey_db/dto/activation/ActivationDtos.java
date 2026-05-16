@@ -22,9 +22,11 @@ public final class ActivationDtos {
     ) {}
 
     public record ActivationConfirmPaymentRequest(
-            @NotBlank
+            // Nullable on purpose: admin-token path (testnet mock) omits this;
+            // production webhook gateway sends the real reference. Service layer
+            // still rejects non-null mismatch — see ActivationServiceImpl.
             @Schema(example = "PK12345678ABC123",
-                    description = "Payment reference khớp với activation")
+                    description = "Payment reference — required for gateway webhook, optional for admin-token mock")
             String paymentReference
     ) {}
 
