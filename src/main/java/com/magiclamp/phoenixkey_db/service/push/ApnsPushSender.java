@@ -115,9 +115,12 @@ public class ApnsPushSender implements PushService {
             return;
         }
 
-        // Background data-only payload (content-available=1, no alert)
-        SimpleApnsPayloadBuilder payloadBuilder = new SimpleApnsPayloadBuilder()
-                .setContentAvailable(true);
+        // Background data-only payload (content-available=1, no alert).
+        // NOTE: setContentAvailable is declared on base ApnsPayloadBuilder and returns the base
+        // type — chaining it on `new SimpleApnsPayloadBuilder()` would force the local var to
+        // be `ApnsPayloadBuilder` and lose access to addCustomProperty. Keep statements split.
+        SimpleApnsPayloadBuilder payloadBuilder = new SimpleApnsPayloadBuilder();
+        payloadBuilder.setContentAvailable(true);
         // Pushy doesn't have a direct "custom property" putAll — set individually
         data.forEach((k, v) -> payloadBuilder.addCustomProperty(k, v));
         payloadBuilder.addCustomProperty("event", eventType);
